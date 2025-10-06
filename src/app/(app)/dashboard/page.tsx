@@ -1,5 +1,5 @@
 import { PageHeader } from '@/components/page-header';
-import { items, locations } from '@/lib/data';
+import { boms } from '@/lib/data';
 import {
   Card,
   CardContent,
@@ -19,12 +19,19 @@ import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { AddItemDialog } from '@/components/add-item-dialog';
 
-const getLocationName = (locationId: string) =>
-  locations.find((l) => l.id === locationId)?.name || 'N/A';
-  
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
 
 export default function DashboardPage() {
+  const allBomItems = boms.flatMap(bom => 
+    bom.items.map(item => ({
+      ...item,
+      jobNumber: bom.jobNumber,
+      jobName: bom.jobName,
+      projectManager: bom.projectManager,
+      primaryFieldLeader: bom.primaryFieldLeader,
+    }))
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -44,23 +51,30 @@ export default function DashboardPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[60px] sm:w-[80px]"></TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="hidden md:table-cell">SKU</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="hidden sm:table-cell">Location</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
+                  <TableHead>Job Number</TableHead>
+                  <TableHead className="hidden lg:table-cell">Job Name</TableHead>
+                  <TableHead className="hidden xl:table-cell">PM</TableHead>
+                  <TableHead className="hidden xl:table-cell">Field Leader</TableHead>
+                  <TableHead>Item Category</TableHead>
+                  <TableHead>Item Description/Part Number</TableHead>
+                  <TableHead className="text-right">Order BOM Qty</TableHead>
+                  <TableHead className="text-right">Design BOM Qty</TableHead>
+                  <TableHead className="text-right">On-Hand</TableHead>
+                  <TableHead className="text-right">Shipped</TableHead>
+                  <TableHead>Shelf Location(s)</TableHead>
+                  <TableHead className="hidden md:table-cell">Last Updated</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item) => {
-                  const placeholder = getPlaceholderImage(item.imageId);
+                {allBomItems.map((item) => {
+                  const placeholder = item.imageId ? getPlaceholderImage(item.imageId) : undefined;
                   return (
                     <TableRow key={item.id}>
-                      <TableCell>
+                       <TableCell>
                         {placeholder && (
-                          <Image
+                           <Image
                             src={placeholder.imageUrl}
-                            alt={item.name}
+                            alt={item.description}
                             width={40}
                             height={40}
                             className="rounded-md object-cover"
@@ -68,13 +82,20 @@ export default function DashboardPage() {
                           />
                         )}
                       </TableCell>
-                      <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell className="hidden text-muted-foreground md:table-cell">{item.sku}</TableCell>
+                      <TableCell className="font-medium">{item.jobNumber}</TableCell>
+                      <TableCell className="hidden lg:table-cell">{item.jobName}</TableCell>
+                      <TableCell className="hidden xl:table-cell text-muted-foreground">{item.projectManager}</TableCell>
+                       <TableCell className="hidden xl:table-cell text-muted-foreground">{item.primaryFieldLeader}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">{item.category}</Badge>
                       </TableCell>
-                      <TableCell className="hidden text-muted-foreground sm:table-cell">{getLocationName(item.locationId)}</TableCell>
-                      <TableCell className="text-right font-mono">{item.quantity.toLocaleString()}</TableCell>
+                      <TableCell>{item.description}</TableCell>
+                      <TableCell className="text-right font-mono">{item.orderBomQuantity.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono">{item.designBomQuantity.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono">{item.onHandQuantity.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono">{item.shippedQuantity.toLocaleString()}</TableCell>
+                       <TableCell className="text-muted-foreground">{item.shelfLocations.join(', ')}</TableCell>
+                      <TableCell className="hidden text-muted-foreground md:table-cell">{item.lastUpdated}</TableCell>
                     </TableRow>
                   );
                 })}
