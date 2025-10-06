@@ -26,11 +26,19 @@ import { AddItemDialog } from '@/components/add-item-dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
 
+// Mock current user - this would be replaced with actual user data from an auth system
+const currentUser = {
+  name: 'Alice Johnson',
+};
+
 export default function DashboardPage() {
   const [search, setSearch] = useState('');
+  const [showMyJobsOnly, setShowMyJobsOnly] = useState(false);
   const router = useRouter();
 
   const allBomItems = boms.flatMap(bom => 
@@ -85,7 +93,16 @@ export default function DashboardPage() {
 
 
   const filteredItems = allItems.filter(item => {
+    // Filter by my jobs
+    if (showMyJobsOnly && item.bomId) {
+      if (item.projectManager !== currentUser.name && item.primaryFieldLeader !== currentUser.name) {
+        return false;
+      }
+    }
+    
     const searchTerm = search.toLowerCase();
+    if (searchTerm === '') return true;
+
     return (
       (item.jobNumber?.toLowerCase() ?? '').includes(searchTerm) ||
       (item.jobName?.toLowerCase() ?? '').includes(searchTerm) ||
@@ -114,13 +131,19 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle>All Items</CardTitle>
-          <div className="mt-4">
+          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
             <Input 
               placeholder="Search items..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-sm"
             />
+            <div className="flex items-center space-x-2">
+              <Checkbox id="my-jobs-filter" checked={showMyJobsOnly} onCheckedChange={(checked) => setShowMyJobsOnly(!!checked)} />
+              <Label htmlFor="my-jobs-filter" className="cursor-pointer">
+                Only show materials for my jobs
+              </Label>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
