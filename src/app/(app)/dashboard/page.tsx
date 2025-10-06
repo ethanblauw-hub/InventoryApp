@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { boms } from '@/lib/data';
 import {
@@ -18,10 +21,13 @@ import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { AddItemDialog } from '@/components/add-item-dialog';
+import { Input } from '@/components/ui/input';
 
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
 
 export default function DashboardPage() {
+  const [search, setSearch] = useState('');
+
   const allBomItems = boms.flatMap(bom => 
     bom.items.map(item => ({
       ...item,
@@ -31,6 +37,20 @@ export default function DashboardPage() {
       primaryFieldLeader: bom.primaryFieldLeader,
     }))
   );
+
+  const filteredItems = allBomItems.filter(item => {
+    const searchTerm = search.toLowerCase();
+    return (
+      item.jobNumber.toLowerCase().includes(searchTerm) ||
+      item.jobName.toLowerCase().includes(searchTerm) ||
+      item.projectManager.toLowerCase().includes(searchTerm) ||
+      item.primaryFieldLeader.toLowerCase().includes(searchTerm) ||
+      item.category.toLowerCase().includes(searchTerm) ||
+      item.description.toLowerCase().includes(searchTerm) ||
+      item.shelfLocations.join(', ').toLowerCase().includes(searchTerm) ||
+      item.lastUpdated.toLowerCase().includes(searchTerm)
+    );
+  });
 
   return (
     <div className="space-y-6">
@@ -44,6 +64,14 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle>All Items</CardTitle>
+          <div className="mt-4">
+            <Input 
+              placeholder="Search items..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="relative w-full overflow-auto">
@@ -66,7 +94,7 @@ export default function DashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {allBomItems.map((item) => {
+                {filteredItems.map((item) => {
                   const placeholder = item.imageId ? getPlaceholderImage(item.imageId) : undefined;
                   return (
                     <TableRow key={item.id}>
