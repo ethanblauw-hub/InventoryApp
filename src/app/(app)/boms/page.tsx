@@ -14,9 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Eye, Upload } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import Link from 'next/link';
 import { BomImportDialog } from '@/components/bom-import-dialog';
 
@@ -39,10 +38,11 @@ export default function BomsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>BOM Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="hidden sm:table-cell">Items</TableHead>
-                  <TableHead className="hidden md:table-cell">Date Uploaded</TableHead>
+                  <TableHead>Job Number</TableHead>
+                  <TableHead>Job Name</TableHead>
+                  <TableHead className="hidden sm:table-cell">Project Manager</TableHead>
+                  <TableHead className="hidden md:table-cell">Field Leader</TableHead>
+                  <TableHead className="hidden sm:table-cell text-right">Items</TableHead>
                   <TableHead>
                     <span className="sr-only">Actions</span>
                   </TableHead>
@@ -51,14 +51,11 @@ export default function BomsPage() {
               <TableBody>
                 {boms.map((bom) => (
                   <TableRow key={bom.id}>
-                    <TableCell className="font-medium">{bom.name}</TableCell>
-                    <TableCell>
-                      <Badge variant={bom.type === 'Design BOM' ? 'default' : 'outline'}>
-                        {bom.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">{bom.items.length}</TableCell>
-                    <TableCell className="hidden text-muted-foreground md:table-cell">{bom.dateUploaded}</TableCell>
+                    <TableCell className="font-medium">{bom.jobNumber}</TableCell>
+                    <TableCell>{bom.jobName}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-muted-foreground">{bom.projectManager}</TableCell>
+                    <TableCell className="hidden md:table-cell text-muted-foreground">{bom.primaryFieldLeader}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-right">{bom.items.length}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" asChild>
                         <Link href={`/boms/${bom.id.replace('bom-', '')}`}>

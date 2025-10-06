@@ -10,11 +10,26 @@ export type Item = {
 
 export type Bom = {
   id: string;
-  name: string;
-  type: 'Order BOM' | 'Design BOM';
-  dateUploaded: string;
-  items: { itemId: string; quantity: number }[];
+  jobNumber: string;
+  jobName: string;
+  projectManager: string;
+  primaryFieldLeader: string;
+  items: BomItem[];
 };
+
+export type BomItem = {
+  id: string;
+  category: string;
+  description: string; // Part Number
+  orderBomQuantity: number;
+  designBomQuantity: number;
+  onHandQuantity: number;
+  shippedQuantity: number;
+  shelfLocations: string[];
+  lastUpdated: string;
+  imageId: string;
+};
+
 
 export type Location = {
   id:string;
@@ -37,9 +52,29 @@ export const items: Item[] = [
 ];
 
 export const boms: Bom[] = [
-  { id: 'bom-1', name: 'Job 1234 - Phase 1', type: 'Order BOM', dateUploaded: '2023-10-01', items: [{ itemId: 'item-1', quantity: 50 }, { itemId: 'item-2', quantity: 1000 }] },
-  { id: 'bom-2', name: 'Job 1234 - Phase 1', type: 'Design BOM', dateUploaded: '2023-10-15', items: [{ itemId: 'item-1', quantity: 52 }, { itemId: 'item-2', quantity: 1050 }, { itemId: 'item-3', quantity: 100 }] },
-  { id: 'bom-3', name: 'Job 5678 - Initial', type: 'Order BOM', dateUploaded: '2023-11-05', items: [{ itemId: 'item-4', quantity: 8000 }, { itemId: 'item-5', quantity: 150 }] },
+  { 
+    id: 'bom-1', 
+    jobNumber: 'J1234',
+    jobName: 'Job 1234 - Phase 1', 
+    projectManager: 'Alice Johnson',
+    primaryFieldLeader: 'Bob Williams',
+    items: [
+      { id: 'bom-item-1', category: 'Structural Steel', description: 'STL-BM-24', orderBomQuantity: 50, designBomQuantity: 52, onHandQuantity: 150, shippedQuantity: 40, shelfLocations: ['Aisle A, Shelf 1'], lastUpdated: '2023-10-20', imageId: 'steel_beam' },
+      { id: 'bom-item-2', category: 'Fasteners', description: 'ANC-BLT-75', orderBomQuantity: 1000, designBomQuantity: 1050, onHandQuantity: 2500, shippedQuantity: 800, shelfLocations: ['Aisle B, Bin 4'], lastUpdated: '2023-10-22', imageId: 'anchor_bolt' },
+      { id: 'bom-item-3', category: 'Plates', description: 'GUS-PLT-LG', orderBomQuantity: 0, designBomQuantity: 100, onHandQuantity: 400, shippedQuantity: 50, shelfLocations: ['Aisle A, Shelf 1'], lastUpdated: '2023-10-21', imageId: 'gusset_plate' }
+    ]
+  },
+  { 
+    id: 'bom-2', 
+    jobNumber: 'J5678',
+    jobName: 'Job 5678 - Initial', 
+    projectManager: 'Charlie Brown',
+    primaryFieldLeader: 'Diana Prince',
+    items: [
+      { id: 'bom-item-4', category: 'Fasteners', description: 'SHR-STD-50', orderBomQuantity: 8000, designBomQuantity: 8000, onHandQuantity: 10000, shippedQuantity: 0, shelfLocations: ['Aisle B, Bin 4'], lastUpdated: '2023-11-05', imageId: 'shear_stud' },
+      { id: 'bom-item-5', category: 'Decking', description: 'DECK-PNL-12-4', orderBomQuantity: 150, designBomQuantity: 150, onHandQuantity: 200, shippedQuantity: 100, shelfLocations: ['Yard - Section 2'], lastUpdated: '2023-11-10', imageId: 'decking_panel' }
+    ]
+  },
 ];
 
 export const locations: Location[] = [

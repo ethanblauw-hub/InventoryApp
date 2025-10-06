@@ -1,11 +1,11 @@
 import { PageHeader } from '@/components/page-header';
-import { boms, items as allItems, locations } from '@/lib/data';
+import { boms } from '@/lib/data';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription
+  CardDescription,
 } from '@/components/ui/card';
 import {
   Table,
@@ -23,9 +23,6 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { notFound } from 'next/navigation';
 
-const getLocationName = (locationId: string) =>
-  locations.find((l) => l.id === locationId)?.name || 'N/A';
-
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
 
 export default function BomDetailPage({ params }: { params: { id: string } }) {
@@ -35,16 +32,13 @@ export default function BomDetailPage({ params }: { params: { id: string } }) {
     notFound();
   }
 
-  const bomItems = bom.items.map(bomItem => {
-    const itemDetails = allItems.find(i => i.id === bomItem.itemId);
-    return { ...itemDetails, requiredQuantity: bomItem.quantity, id: bomItem.itemId };
-  });
+  const bomItems = bom.items;
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title={bom.name}
-        description={`Details for ${bom.type}. Uploaded on ${bom.dateUploaded}.`}
+        title={`${bom.jobName} (${bom.jobNumber})`}
+        description={`PM: ${bom.projectManager} | Field Leader: ${bom.primaryFieldLeader}`}
       >
         <Button variant="outline" asChild>
           <Link href="/boms">
@@ -58,7 +52,7 @@ export default function BomDetailPage({ params }: { params: { id: string } }) {
         <CardHeader>
           <CardTitle>Items in BOM</CardTitle>
           <CardDescription>
-            This list shows the required items and quantities for this BOM compared to current inventory.
+            This list shows the required items and quantities for this BOM.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -67,25 +61,26 @@ export default function BomDetailPage({ params }: { params: { id: string } }) {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[60px] sm:w-[80px]"></TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead className="text-right">Required</TableHead>
-                  <TableHead className="text-right">In Stock</TableHead>
-                  <TableHead className="text-right">Variance</TableHead>
+                  <TableHead>Description/Part Number</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Order Qty</TableHead>
+                  <TableHead className="text-right">Design Qty</TableHead>
+                  <TableHead className="text-right">On-Hand</TableHead>
+                  <TableHead className="text-right">Shipped</TableHead>
+                  <TableHead>Shelf Location(s)</TableHead>
+                  <TableHead className="hidden md:table-cell">Last Updated</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {bomItems.map((item) => {
-                  if (!item.name) return null;
                   const placeholder = item.imageId ? getPlaceholderImage(item.imageId) : undefined;
-                  const variance = (item.quantity ?? 0) - item.requiredQuantity;
                   return (
                     <TableRow key={item.id}>
                       <TableCell>
                         {placeholder && (
                            <Image
                             src={placeholder.imageUrl}
-                            alt={item.name}
+                            alt={item.description}
                             width={40}
                             height={40}
                             className="rounded-md object-cover"
@@ -93,13 +88,16 @@ export default function BomDetailPage({ params }: { params: { id: string } }) {
                           />
                         )}
                       </TableCell>
-                      <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{item.sku}</TableCell>
-                      <TableCell className="text-right font-mono">{item.requiredQuantity.toLocaleString()}</TableCell>
-                      <TableCell className="text-right font-mono">{item.quantity?.toLocaleString() ?? 0}</TableCell>
-                      <TableCell className={`text-right font-mono font-medium ${variance < 0 ? 'text-destructive' : 'text-green-600'}`}>
-                        {variance.toLocaleString()}
+                      <TableCell className="font-medium">{item.description}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{item.category}</Badge>
                       </TableCell>
+                      <TableCell className="text-right font-mono">{item.orderBomQuantity.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono">{item.designBomQuantity.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono">{item.onHandQuantity.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono">{item.shippedQuantity.toLocaleString()}</TableCell>
+                       <TableCell className="text-muted-foreground">{item.shelfLocations.join(', ')}</TableCell>
+                      <TableCell className="hidden text-muted-foreground md:table-cell">{item.lastUpdated}</TableCell>
                     </TableRow>
                   );
                 })}
