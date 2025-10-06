@@ -1,3 +1,34 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "steel_beam",
+      "description": "A stack of steel beams",
+      "imageUrl": "https://images.unsplash.com/photo-1630710577133-8c3ca9da67f9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxzdGVlbCUyMGJlYW1zfGVufDB8fHx8MTc1OTY5MTEzMnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "steel beams"
+    },
+    {
+      "id": "anchor_bolt",
+      "description": "A box of anchor bolts",
+      "imageUrl": "https://images.unsplash.com/photo-1583919311248-b6d140626c61?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxib2x0cyUyMG51dHN8ZW58MHx8fHwxNzU5NzgxNjIwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "bolts nuts"
+    },
+    {
+      "id": "gusset_plate",
+      "description": "A metal gusset plate",
+      "imageUrl": "https://images.unsplash.com/photo-1642707334908-8a4723fc1e24?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bWV0YWwlMjBwbGF0ZXxlbnwwfHx8fDE3NTk3NDUyMjZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "metal plate"
+    },
+    {
+      "id": "shear_stud",
+      "description": "A pile of shear studs",
+      "imageUrl": "https://images.unsplash.com/photo-1622292400108-4f3bf646f53d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxtZXRhbCUyMHN0dWRzfGVufDB8fHx8MTc1OTc4MTYyMHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "metal studs"
+    },
+    {
+      "id": "decking_panel",
+      "description": "A stack of decking panels",
+      "imageUrl": "https://images.unsplash.com/photo-1742293724201-52e466b21946?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxtZXRhbCUyMGRlY2tpbmd8ZW58MHx8fHwxNzU5NzgxNjIwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "metal decking"
+    }
+  ]
 }
