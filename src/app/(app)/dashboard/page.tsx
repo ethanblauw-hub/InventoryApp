@@ -44,13 +44,53 @@ export default function DashboardPage() {
     }))
   );
 
-  const filteredItems = allBomItems.filter(item => {
+  const standaloneItems = [
+    {
+      id: 'item-6',
+      category: 'Consumables',
+      description: 'Welding Rods E7018',
+      orderBomQuantity: 0,
+      designBomQuantity: 0,
+      onHandQuantity: 500,
+      shippedQuantity: 0,
+      shelfLocations: ['Aisle C, Bin 1'],
+      lastUpdated: '2023-11-15',
+      imageId: '',
+      bomId: undefined,
+      jobNumber: '-',
+      jobName: '-',
+      projectManager: '-',
+      primaryFieldLeader: '-',
+    },
+    {
+      id: 'item-7',
+      category: 'Safety',
+      description: 'Hard Hat (White)',
+      orderBomQuantity: 0,
+      designBomQuantity: 0,
+      onHandQuantity: 20,
+      shippedQuantity: 0,
+      shelfLocations: ['Safety Cabinet'],
+      lastUpdated: '2023-11-12',
+      imageId: '',
+      bomId: undefined,
+      jobNumber: '-',
+      jobName: '-',
+      projectManager: '-',
+      primaryFieldLeader: '-',
+    }
+  ]
+
+  const allItems = [...allBomItems, ...standaloneItems];
+
+
+  const filteredItems = allItems.filter(item => {
     const searchTerm = search.toLowerCase();
     return (
-      item.jobNumber.toLowerCase().includes(searchTerm) ||
-      item.jobName.toLowerCase().includes(searchTerm) ||
-      item.projectManager.toLowerCase().includes(searchTerm) ||
-      item.primaryFieldLeader.toLowerCase().includes(searchTerm) ||
+      (item.jobNumber?.toLowerCase() ?? '').includes(searchTerm) ||
+      (item.jobName?.toLowerCase() ?? '').includes(searchTerm) ||
+      (item.projectManager?.toLowerCase() ?? '').includes(searchTerm) ||
+      (item.primaryFieldLeader?.toLowerCase() ?? '').includes(searchTerm) ||
       item.category.toLowerCase().includes(searchTerm) ||
       item.description.toLowerCase().includes(searchTerm) ||
       item.shelfLocations.join(', ').toLowerCase().includes(searchTerm) ||
@@ -137,7 +177,7 @@ export default function DashboardPage() {
                       <TableCell className="hidden text-muted-foreground md:table-cell">{item.lastUpdated}</TableCell>
                       <TableCell className="text-right">
                         {item.bomId && (
-                           <Button variant="outline" size="sm" onClick={() => handleBomRedirect(item.bomId)}>
+                           <Button variant="outline" size="sm" onClick={() => handleBomRedirect(item.bomId!)}>
                              View BOM
                              <ArrowRight className="ml-2 h-4 w-4" />
                            </Button>
