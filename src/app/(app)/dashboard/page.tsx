@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
 import { boms } from '@/lib/data';
 import {
@@ -22,15 +24,19 @@ import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { AddItemDialog } from '@/components/add-item-dialog';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ArrowRight } from 'lucide-react';
 
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
 
 export default function DashboardPage() {
   const [search, setSearch] = useState('');
+  const router = useRouter();
 
   const allBomItems = boms.flatMap(bom => 
     bom.items.map(item => ({
       ...item,
+      bomId: bom.id,
       jobNumber: bom.jobNumber,
       jobName: bom.jobName,
       projectManager: bom.projectManager,
@@ -51,6 +57,10 @@ export default function DashboardPage() {
       item.lastUpdated.toLowerCase().includes(searchTerm)
     );
   });
+  
+  const handleBomRedirect = (bomId: string) => {
+    router.push(`/boms/${bomId.replace('bom-', '')}`);
+  }
 
   return (
     <div className="space-y-6">
@@ -91,6 +101,7 @@ export default function DashboardPage() {
                   <TableHead className="text-right">Shipped</TableHead>
                   <TableHead>Shelf Location(s)</TableHead>
                   <TableHead className="hidden md:table-cell">Last Updated</TableHead>
+                  <TableHead><span className="sr-only">Actions</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -124,6 +135,14 @@ export default function DashboardPage() {
                       <TableCell className="text-right font-mono">{item.shippedQuantity.toLocaleString()}</TableCell>
                        <TableCell className="text-muted-foreground">{item.shelfLocations.join(', ')}</TableCell>
                       <TableCell className="hidden text-muted-foreground md:table-cell">{item.lastUpdated}</TableCell>
+                      <TableCell className="text-right">
+                        {item.bomId && (
+                           <Button variant="outline" size="sm" onClick={() => handleBomRedirect(item.bomId)}>
+                             View BOM
+                             <ArrowRight className="ml-2 h-4 w-4" />
+                           </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   );
                 })}
