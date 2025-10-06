@@ -94,7 +94,8 @@ export default function DashboardPage() {
 
   const filteredItems = allItems.filter(item => {
     // Filter by my jobs
-    if (showMyJobsOnly && item.bomId) {
+    if (showMyJobsOnly) {
+      if (!item.bomId) return false;
       if (item.projectManager !== currentUser.name && item.primaryFieldLeader !== currentUser.name) {
         return false;
       }
