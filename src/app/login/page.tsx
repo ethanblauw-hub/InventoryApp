@@ -1,0 +1,66 @@
+
+"use client";
+
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Package } from "lucide-react";
+
+function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
+    return (
+        <svg
+            {...props}
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <title>Google icon</title>
+            <path d="M12.24 10.28c.14-.46.25-.94.34-1.44H12v2.73h5.13c-.22.95-.78 2.05-1.74 2.73a4.79 4.79 0 0 1-3.39 1.25c-2.83 0-5.13-2.3-5.13-5.13s2.3-5.13 5.13-5.13c1.56 0 2.9.64 3.96 1.63l-2.02 2.02c-.52-.49-1.22-.84-2.02-.84-1.68 0-3.05 1.37-3.05 3.05s1.37 3.05 3.05 3.05c1.9 0 2.65-1.39 2.76-2.07z" />
+            <path d="M12 2a10 10 0 1 0 10 10c0-.55-.04-1.09-.12-1.63" />
+        </svg>
+    )
+}
+
+export default function LoginPage() {
+  const { user, loading, signInWithGoogle } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.push("/dashboard");
+    }
+  }, [user, loading, router]);
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+            <div className="flex justify-center items-center mb-4">
+                <Package className="size-8 shrink-0 text-accent" />
+            </div>
+          <CardTitle className="text-2xl font-bold">PartTrack</CardTitle>
+          <CardDescription>
+            Sign in to access the inventory management system.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={signInWithGoogle} className="w-full" disabled={loading}>
+             <GoogleIcon className="mr-2 h-4 w-4" />
+            Sign in with Google
+          </Button>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Please use your @eganco.com account.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

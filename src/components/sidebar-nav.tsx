@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -22,7 +23,6 @@ const navItems = [
   { href: '/locations', label: 'Shelf Location List', icon: Warehouse },
   { href: '/receive', label: 'Receive/Store', icon: PackagePlus },
   { href: '/categories', label: 'Categories', icon: Tags },
-  { href: '/containers/1', label: 'Container Details', icon: Container },
 ];
 
 export function SidebarNav() {
@@ -34,7 +34,7 @@ export function SidebarNav() {
         <SidebarMenuItem key={item.href}>
           <SidebarMenuButton
             asChild
-            isActive={pathname.startsWith(item.href) && (item.href === '/dashboard' || item.href.startsWith('/containers')) ? pathname === item.href : true}
+            isActive={pathname.startsWith(item.href) && (item.href === '/dashboard' ? pathname === item.href : true) }
             tooltip={item.label}
           >
             <Link href={item.href}>
@@ -44,6 +44,21 @@ export function SidebarNav() {
           </SidebarMenuButton>
         </SidebarMenuItem>
       ))}
+       {/* Conditional Item for Container Details for demo */}
+       { (pathname.startsWith('/containers')) && (
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={true}
+              tooltip="Container Details"
+            >
+              <Link href={pathname}>
+                <Container />
+                <span>Container Details</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        )}
     </SidebarMenu>
   );
 }
