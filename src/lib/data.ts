@@ -1,3 +1,4 @@
+
 export type Item = {
   id: string;
   name: string;
@@ -36,6 +37,9 @@ export type Location = {
   items: string[]; // array of item IDs
 };
 
+/**
+ * Represents a customizable work category for organizing BOMs by type of work (e.g., 'Lighting', 'Gear').
+ */
 export type Category = {
   id: string;
   name: string;
@@ -57,11 +61,11 @@ export const boms: Bom[] = [
     jobName: 'Job 1234 - Phase 1', 
     projectManager: 'Alice Johnson',
     primaryFieldLeader: 'Bob Williams',
-    workCategoryId: 'cat-1',
+    workCategoryId: 'cat-1', // Lighting
     items: [
-      { id: 'bom-item-1', description: 'STL-BM-24', orderBomQuantity: 50, designBomQuantity: 52, onHandQuantity: 150, shippedQuantity: 40, shelfLocations: ['Aisle A, Shelf 1'], lastUpdated: '2023-10-20', imageId: 'steel_beam' },
-      { id: 'bom-item-2', description: 'ANC-BLT-75', orderBomQuantity: 1000, designBomQuantity: 1050, onHandQuantity: 2500, shippedQuantity: 800, shelfLocations: ['Aisle B, Bin 4'], lastUpdated: '2023-10-22', imageId: 'anchor_bolt' },
-      { id: 'bom-item-3', description: 'GUS-PLT-LG', orderBomQuantity: 0, designBomQuantity: 100, onHandQuantity: 400, shippedQuantity: 50, shelfLocations: ['Aisle A, Shelf 1'], lastUpdated: '2023-10-21', imageId: 'gusset_plate' }
+      { id: 'bom-item-1', description: 'LED Light Fixture 4ft', orderBomQuantity: 50, designBomQuantity: 52, onHandQuantity: 150, shippedQuantity: 40, shelfLocations: ['Aisle A, Shelf 1'], lastUpdated: '2023-10-20', imageId: 'steel_beam' },
+      { id: 'bom-item-2', description: 'Conduit 3/4"', orderBomQuantity: 1000, designBomQuantity: 1050, onHandQuantity: 2500, shippedQuantity: 800, shelfLocations: ['Aisle B, Bin 4'], lastUpdated: '2023-10-22', imageId: 'anchor_bolt' },
+      { id: 'bom-item-3', description: 'Junction Box', orderBomQuantity: 0, designBomQuantity: 100, onHandQuantity: 400, shippedQuantity: 50, shelfLocations: ['Aisle A, Shelf 1'], lastUpdated: '2023-10-21', imageId: 'gusset_plate' }
     ]
   },
   { 
@@ -70,10 +74,10 @@ export const boms: Bom[] = [
     jobName: 'Job 5678 - Initial', 
     projectManager: 'Charlie Brown',
     primaryFieldLeader: 'Diana Prince',
-    workCategoryId: 'cat-2',
+    workCategoryId: 'cat-2', // Gear
     items: [
-      { id: 'bom-item-4', description: 'SHR-STD-50', orderBomQuantity: 8000, designBomQuantity: 8000, onHandQuantity: 10000, shippedQuantity: 0, shelfLocations: ['Aisle B, Bin 4'], lastUpdated: '2023-11-05', imageId: 'shear_stud' },
-      { id: 'bom-item-5', description: 'DECK-PNL-12-4', orderBomQuantity: 150, designBomQuantity: 150, onHandQuantity: 200, shippedQuantity: 100, shelfLocations: ['Yard - Section 2'], lastUpdated: '2023-11-10', imageId: 'decking_panel' }
+      { id: 'bom-item-4', description: 'Safety Harness', orderBomQuantity: 10, designBomQuantity: 10, onHandQuantity: 30, shippedQuantity: 0, shelfLocations: ['Safety Cabinet'], lastUpdated: '2023-11-05', imageId: 'shear_stud' },
+      { id: 'bom-item-5', description: 'Hard Hat', orderBomQuantity: 10, designBomQuantity: 10, onHandQuantity: 50, shippedQuantity: 10, shelfLocations: ['Safety Cabinet'], lastUpdated: '2023-11-10', imageId: 'decking_panel' }
     ]
   },
 ];
@@ -83,11 +87,11 @@ export const locations: Location[] = [
     { id: 'loc-2', name: 'Aisle B, Bin 4', items: ['item-2', 'item-4'] },
     { id: 'loc-3', name: 'Yard - Section 2', items: ['item-5'] },
     { id: 'loc-4', name: 'Receiving Dock', items: [] },
+    { id: 'loc-5', name: 'Safety Cabinet', items: [] },
 ];
 
 export const categories: Category[] = [
-    { id: 'cat-1', name: 'Structural Steel', description: 'Work related to the main steel frame and structure.' },
-    { id: 'cat-2', name: 'Miscellaneous Steel', description: 'Stairs, railings, ladders, and other secondary steel elements.' },
-    { id: 'cat-3', name: 'Decking', description: 'Installation of metal floor and roof decks.' },
-    { id: 'cat-4', name: 'Shop Fabrication', description: 'Items fabricated in the shop prior to field installation.' },
+    { id: 'cat-1', name: 'Lighting', description: 'Work related to electrical lighting fixtures and installation.' },
+    { id: 'cat-2', name: 'Gear', description: 'Tools, safety equipment, and other operational gear.' },
+    { id: 'cat-3', name: 'Outdoor', description: 'Materials and equipment for outdoor or site work.' },
 ];
