@@ -11,10 +11,12 @@
 
 import { FirebaseProvider, useUser, useAuth, useFirestore, useFirebaseApp } from './provider';
 import { firebaseConfig } from './config';
+import { FirebaseClientProvider } from './client-provider';
 
 
 export {
   FirebaseProvider,
+  FirebaseClientProvider,
   firebaseConfig,
   useUser,
   useAuth,
