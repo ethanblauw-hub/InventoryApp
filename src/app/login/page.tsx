@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package } from "lucide-react";
-import { GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 /**
  * A reusable Google icon component.
@@ -49,9 +49,9 @@ export default function LoginPage() {
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   // This effect handles redirection based on authentication state.
+  // It runs when the user's auth state is resolved or changes.
   useEffect(() => {
-    // If we're not loading and a user object is available, redirect to the dashboard.
-    // This handles the case where a user is already logged in and revisits the login page.
+    // If authentication check is complete and a user is logged in, redirect.
     if (!isUserLoading && user) {
       router.push("/dashboard");
     }
@@ -59,26 +59,24 @@ export default function LoginPage() {
 
   /**
    * Initiates the Google sign-in process using a popup.
-   * A new user is created in Firestore if they don't already exist.
-   * Handles user navigation upon successful sign-in.
+   * After a successful sign-in, the `useUser` hook will receive the updated
+   * user object, triggering the `useEffect` above to redirect.
    */
   const signInWithGoogle = async () => {
-    if (!auth) return;
+    if (!auth || isSigningIn) return;
 
     setIsSigningIn(true);
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({
-        // Optional: Force account selection
-        // prompt: 'select_account'
-    });
-
+    
     try {
       await signInWithPopup(auth, provider);
-      // The onAuthStateChanged listener in useUser() will detect the new user.
-      // The useEffect above will then handle the redirect to the dashboard.
+      // The onAuthStateChanged listener in useUser() will detect the new user,
+      // and the useEffect will handle the redirect.
     } catch (error: any) {
-      console.error("Error during sign-in:", error.message);
-      // If the user closes the popup or another error occurs, reset the state.
+      if (error.code !== 'auth/popup-closed-by-user') {
+        console.error("Error during sign-in:", error.message);
+      }
+      // In any case (success, error, or closed popup), we reset the signing-in state.
       setIsSigningIn(false);
     }
   };
@@ -121,7 +119,7 @@ export default function LoginPage() {
             Sign in with Google
           </Button>
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            Please use your @eganco.com account.
+            Please use your company account.
           </p>
         </CardContent>
       </Card>
