@@ -2,7 +2,6 @@
 "use client";
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
 import { boms } from '@/lib/data';
@@ -20,7 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { AddItemDialog } from '@/components/add-item-dialog';
@@ -57,7 +55,6 @@ export default function DashboardPage() {
   const standaloneItems = [
     {
       id: 'item-6',
-      category: 'Consumables',
       description: 'Welding Rods E7018',
       orderBomQuantity: 0,
       designBomQuantity: 0,
@@ -68,13 +65,12 @@ export default function DashboardPage() {
       imageId: '',
       bomId: undefined,
       jobNumber: '-',
-      jobName: '-',
+      jobName: 'Shop Stock',
       projectManager: '-',
       primaryFieldLeader: '-',
     },
     {
       id: 'item-7',
-      category: 'Safety',
       description: 'Hard Hat (White)',
       orderBomQuantity: 0,
       designBomQuantity: 0,
@@ -85,7 +81,7 @@ export default function DashboardPage() {
       imageId: '',
       bomId: undefined,
       jobNumber: '-',
-      jobName: '-',
+      jobName: 'Shop Stock',
       projectManager: '-',
       primaryFieldLeader: '-',
     }
@@ -111,7 +107,6 @@ export default function DashboardPage() {
       (item.jobName?.toLowerCase() ?? '').includes(searchTerm) ||
       (item.projectManager?.toLowerCase() ?? '').includes(searchTerm) ||
       (item.primaryFieldLeader?.toLowerCase() ?? '').includes(searchTerm) ||
-      item.category.toLowerCase().includes(searchTerm) ||
       item.description.toLowerCase().includes(searchTerm) ||
       item.shelfLocations.join(', ').toLowerCase().includes(searchTerm) ||
       item.lastUpdated.toLowerCase().includes(searchTerm)
@@ -159,7 +154,6 @@ export default function DashboardPage() {
                   <TableHead className="hidden lg:table-cell">Job Name</TableHead>
                   <TableHead className="hidden xl:table-cell">PM</TableHead>
                   <TableHead className="hidden xl:table-cell">Field Leader</TableHead>
-                  <TableHead>Item Category</TableHead>
                   <TableHead>Item Description/Part Number</TableHead>
                   <TableHead className="text-right">Order BOM Qty</TableHead>
                   <TableHead className="text-right">Design BOM Qty</TableHead>
@@ -191,9 +185,6 @@ export default function DashboardPage() {
                       <TableCell className="hidden lg:table-cell">{item.jobName}</TableCell>
                       <TableCell className="hidden xl:table-cell text-muted-foreground">{item.projectManager}</TableCell>
                        <TableCell className="hidden xl:table-cell text-muted-foreground">{item.primaryFieldLeader}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{item.category}</Badge>
-                      </TableCell>
                       <TableCell>{item.description}</TableCell>
                       <TableCell className="text-right font-mono">{item.orderBomQuantity.toLocaleString()}</TableCell>
                       <TableCell className="text-right font-mono">{item.designBomQuantity.toLocaleString()}</TableCell>

@@ -16,8 +16,8 @@ export default function CategoriesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Item Categories"
-        description="Customize item categories for use in different app views."
+        title="Work Categories"
+        description="Customize work categories for organizing BOMs."
       >
         <AddCategoryDialog />
       </PageHeader>

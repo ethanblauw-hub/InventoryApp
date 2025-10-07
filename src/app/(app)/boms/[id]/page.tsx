@@ -1,6 +1,6 @@
 
 import { PageHeader } from '@/components/page-header';
-import { boms } from '@/lib/data';
+import { boms, categories } from '@/lib/data';
 import {
   Card,
   CardContent,
@@ -34,6 +34,7 @@ export default function BomDetailPage({ params }: { params: { id: string } }) {
     notFound();
   }
 
+  const workCategory = categories.find(c => c.id === bom.workCategoryId);
   const bomItems = bom.items;
 
   return (
@@ -52,6 +53,14 @@ export default function BomDetailPage({ params }: { params: { id: string } }) {
           <UpdateBOMDialog bom={bom} />
         </div>
       </PageHeader>
+
+      <div className="mb-4">
+        {workCategory && (
+          <Badge variant="default" className="text-sm">
+            {workCategory.name}
+          </Badge>
+        )}
+      </div>
       
       <Card>
         <CardHeader>
@@ -67,7 +76,6 @@ export default function BomDetailPage({ params }: { params: { id: string } }) {
                 <TableRow>
                   <TableHead className="w-[60px] sm:w-[80px]"></TableHead>
                   <TableHead>Description/Part Number</TableHead>
-                  <TableHead>Category</TableHead>
                   <TableHead className="text-right">Order Qty</TableHead>
                   <TableHead className="text-right">Design Qty</TableHead>
                   <TableHead className="text-right">On-Hand</TableHead>
@@ -94,9 +102,6 @@ export default function BomDetailPage({ params }: { params: { id: string } }) {
                         )}
                       </TableCell>
                       <TableCell className="font-medium">{item.description}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{item.category}</Badge>
-                      </TableCell>
                       <TableCell className="text-right font-mono">{item.orderBomQuantity.toLocaleString()}</TableCell>
                       <TableCell className="text-right font-mono">{item.designBomQuantity.toLocaleString()}</TableCell>
                       <TableCell className="text-right font-mono">{item.onHandQuantity.toLocaleString()}</TableCell>

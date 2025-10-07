@@ -1,22 +1,22 @@
 {
   "entities": {
-    "ItemCategory": {
+    "WorkCategory": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ItemCategory",
+      "title": "WorkCategory",
       "type": "object",
-      "description": "Represents a customizable item category for organizing inventory items.",
+      "description": "Represents a customizable work category for organizing BOMs by type of work.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the item category."
+          "description": "Unique identifier for the work category."
         },
         "name": {
           "type": "string",
-          "description": "Name of the item category (e.g., 'Electrical', 'Plumbing')."
+          "description": "Name of the work category (e.g., 'Structural Steel', 'Miscellaneous Steel')."
         },
         "description": {
           "type": "string",
-          "description": "Description of the item category."
+          "description": "Description of the work category."
         }
       },
       "required": [
@@ -50,6 +50,10 @@
         "jobId": {
           "type": "string",
           "description": "Reference to Job. (Relationship: Job 1:N Bom)"
+        },
+        "workCategoryId": {
+          "type": "string",
+          "description": "Reference to WorkCategory. (Relationship: WorkCategory 1:N Bom)"
         }
       },
       "required": [
@@ -57,7 +61,8 @@
         "name",
         "type",
         "uploadDate",
-        "jobId"
+        "jobId",
+        "workCategoryId"
       ]
     },
     "InventoryItem": {
@@ -81,17 +86,12 @@
         "quantity": {
           "type": "number",
           "description": "Current quantity of the item in inventory."
-        },
-        "itemCategoryId": {
-          "type": "string",
-          "description": "Reference to ItemCategory. (Relationship: ItemCategory 1:N InventoryItem)"
         }
       },
       "required": [
         "id",
         "name",
-        "quantity",
-        "itemCategoryId"
+        "quantity"
       ]
     },
     "ShelfLocation": {
@@ -190,17 +190,17 @@
         }
       },
       {
-        "path": "/itemCategories/{itemCategoryId}",
+        "path": "/workCategories/{workCategoryId}",
         "definition": {
-          "entityName": "ItemCategory",
+          "entityName": "WorkCategory",
           "schema": {
-            "$ref": "#/backend/entities/ItemCategory"
+            "$ref": "#/backend/entities/WorkCategory"
           },
-          "description": "Represents a category for inventory items.",
+          "description": "Represents a category for BOMs based on the type of work.",
           "params": [
             {
-              "name": "itemCategoryId",
-              "description": "The unique identifier for the item category."
+              "name": "workCategoryId",
+              "description": "The unique identifier for the work category."
             }
           ]
         }
@@ -238,6 +238,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure for PartTrack is designed to provide a secure, scalable, and easily maintainable database for managing inventory, BOMs, and job-related data. The design prioritizes authorization independence and clarity through denormalization and structural segregation. The error mentioned suggests the application couldn't find the firebase config, so I did not include any role based access controls, but it can be added if this is fixed by the requested design.\n\nAuthorization Independence:\nAuthorization independence is achieved through path-based ownership for user-specific data and denormalization of authorization context where collaborative access is needed.\n\nQAPs (Rules are not Filters):\nThe structure enables secure list operations (QAPs) through structural segregation. Each top-level collection houses documents with a uniform security posture. Path based security is provided for user owned data.\n\nBased on the application requirements, the structure will follow this approach:\n\n1.  Jobs and BOMs: Jobs serve as containers for BOMs. BOMs are either 'Order' (estimate) or 'Design' (actual).  BOMs are structured as subcollections under Jobs to establish clear relationships. BOM data includes denormalized fields for efficient querying and filtering. The structure assumes the user must have access to the job to access the associated BOMs. Ownership is implicit via the path. Receive/Store is not modeled as this is a UI function only.\n\n2.  Inventory and Categories: Item Categories are stored in a top-level collection that can be centrally managed by the admin. Inventory Items are linked to Item Categories via the 'itemCategoryId' field. Shelf locations are stored in a top-level collection.  Inventory Items have a many-to-many relationship with Shelf Locations. A denormalized array of item IDs are stored in the ShelfLocation documents.\n\n3.  Shelf Locations: Each shelf location stores a list of inventory item IDs. This design enables easy lookups of items stored at a given location."
+    "reasoning": "The Firestore structure for PartTrack is designed to provide a secure, scalable, and easily maintainable database for managing inventory, BOMs, and job-related data. The design prioritizes authorization independence and clarity through denormalization and structural segregation. The error mentioned suggests the application couldn't find the firebase config, so I did not include any role based access controls, but it can be added if this is fixed by the requested design.\n\nAuthorization Independence:\nAuthorization independence is achieved through path-based ownership for user-specific data and denormalization of authorization context where collaborative access is needed.\n\nQAPs (Rules are not Filters):\nThe structure enables secure list operations (QAPs) through structural segregation. Each top-level collection houses documents with a uniform security posture. Path based security is provided for user owned data.\n\nBased on the application requirements, the structure will follow this approach:\n\n1.  Jobs and BOMs: Jobs serve as containers for BOMs. BOMs are either 'Order' (estimate) or 'Design' (actual).  BOMs are structured as subcollections under Jobs to establish clear relationships. BOM data includes denormalized fields for efficient querying and filtering. The structure assumes the user must have access to the job to access the associated BOMs. Ownership is implicit via the path. Receive/Store is not modeled as this is a UI function only.\n\n2.  Inventory and Categories: Work Categories are stored in a top-level collection that can be centrally managed by the admin. BOMs are linked to Work Categories via the 'workCategoryId' field. Shelf locations are stored in a top-level collection.  Inventory Items have a many-to-many relationship with Shelf Locations. A denormalized array of item IDs are stored in the ShelfLocation documents.\n\n3.  Shelf Locations: Each shelf location stores a list of inventory item IDs. This design enables easy lookups of items stored at a given location."
   }
 }

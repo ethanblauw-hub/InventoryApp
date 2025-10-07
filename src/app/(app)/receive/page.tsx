@@ -42,7 +42,7 @@ const containerSchema = z.object({
 
 const formSchema = z.object({
   jobNumber: z.string().optional(),
-  itemCategory: z.string().optional(),
+  workCategory: z.string().optional(),
   containers: z.array(containerSchema).min(1, "At least one container is required."),
 });
 
@@ -122,6 +122,10 @@ export default function ReceiveStorePage() {
                                 key={bom.id}
                                 onSelect={() => {
                                   form.setValue("jobNumber", bom.jobNumber);
+                                  const associatedBom = boms.find(b => b.jobNumber === bom.jobNumber);
+                                  if (associatedBom) {
+                                    form.setValue("workCategory", associatedBom.workCategoryId);
+                                  }
                                 }}
                               >
                                 <Check
@@ -143,7 +147,7 @@ export default function ReceiveStorePage() {
                       </PopoverContent>
                     </Popover>
                     <FormDescription>
-                      Search by job name or number.
+                      Search by job name or number. Selecting a job will auto-fill the work category.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -151,11 +155,11 @@ export default function ReceiveStorePage() {
               />
               <FormField
                 control={form.control}
-                name="itemCategory"
+                name="workCategory"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Item Category</FormLabel>
-                     <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel>Work Category</FormLabel>
+                     <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a category" />
@@ -370,5 +374,3 @@ function ItemArray({ containerIndex, control }: { containerIndex: number, contro
     </div>
   )
 }
-
-    

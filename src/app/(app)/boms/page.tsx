@@ -1,7 +1,7 @@
 "use client";
 
 import { PageHeader } from '@/components/page-header';
-import { boms } from '@/lib/data';
+import { boms, categories } from '@/lib/data';
 import {
   Card,
   CardContent,
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/table';
 import { BomImportDialog } from '@/components/bom-import-dialog';
 import { useRouter } from 'next/navigation';
+import { Badge } from '@/components/ui/badge';
 
 export default function BomsPage() {
   const router = useRouter();
@@ -46,25 +47,32 @@ export default function BomsPage() {
                 <TableRow>
                   <TableHead>Job Number</TableHead>
                   <TableHead>Job Name</TableHead>
+                  <TableHead>Work Category</TableHead>
                   <TableHead className="hidden sm:table-cell">Project Manager</TableHead>
                   <TableHead className="hidden md:table-cell">Field Leader</TableHead>
                   <TableHead className="hidden sm:table-cell text-right">Items</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {boms.map((bom) => (
-                  <TableRow 
-                    key={bom.id} 
-                    onClick={() => handleRowClick(bom.id)}
-                    className="cursor-pointer"
-                  >
-                    <TableCell className="font-medium">{bom.jobNumber}</TableCell>
-                    <TableCell>{bom.jobName}</TableCell>
-                    <TableCell className="hidden sm:table-cell text-muted-foreground">{bom.projectManager}</TableCell>
-                    <TableCell className="hidden md:table-cell text-muted-foreground">{bom.primaryFieldLeader}</TableCell>
-                    <TableCell className="hidden sm:table-cell text-right">{bom.items.length}</TableCell>
-                  </TableRow>
-                ))}
+                {boms.map((bom) => {
+                  const category = categories.find(c => c.id === bom.workCategoryId);
+                  return (
+                    <TableRow 
+                      key={bom.id} 
+                      onClick={() => handleRowClick(bom.id)}
+                      className="cursor-pointer"
+                    >
+                      <TableCell className="font-medium">{bom.jobNumber}</TableCell>
+                      <TableCell>{bom.jobName}</TableCell>
+                      <TableCell>
+                        {category && <Badge variant="secondary">{category.name}</Badge>}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-muted-foreground">{bom.projectManager}</TableCell>
+                      <TableCell className="hidden md:table-cell text-muted-foreground">{bom.primaryFieldLeader}</TableCell>
+                      <TableCell className="hidden sm:table-cell text-right">{bom.items.length}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
