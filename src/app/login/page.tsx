@@ -33,62 +33,49 @@ export default function LoginPage() {
   const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(true);
 
-  // --- Handle redirect results once Firebase Auth is ready ---
   useEffect(() => {
-    if (!auth) return;
-
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
-      if (firebaseUser) {
-        router.push("/dashboard");
-        unsubscribe();
-        return;
-      }
-
-      try {
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
-          router.push("/dashboard");
-        } else {
-          setIsProcessing(false);
-        }
-      } catch (error) {
-        console.error("Redirect handling failed:", error);
-        setIsProcessing(false);
-      } finally {
-        unsubscribe();
-      }
-    });
-  }, [auth, router]);
-
-  // --- If already signed in, redirect immediately ---
-  useEffect(() => {
-    if (!isUserLoading && user) {
-      router.push("/dashboard");
+    // Wait until both the user loading state is settled and the auth instance is available.
+    if (isUserLoading || !auth) {
+      return; 
     }
-  }, [user, isUserLoading, router]);
 
-  // --- Trigger Google Sign-In ---
+    // If the user is already authenticated, redirect them.
+    if (user) {
+      router.push("/dashboard");
+      return;
+    }
+    
+    // Process the redirect result from Google Sign-In.
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          // A user was successfully signed in via redirect.
+          // The onAuthStateChanged listener will handle the redirect to dashboard.
+          // We can just stop processing here.
+          return; 
+        }
+        // If there's no result, it means the user is not signed in
+        // and did not just return from a redirect.
+        // It's now safe to show the login button.
+        setIsProcessing(false);
+      })
+      .catch((error) => {
+        console.error("Error processing redirect result:", error);
+        setIsProcessing(false);
+      });
+  }, [user, isUserLoading, auth, router]);
+
   const handleSignIn = async () => {
     if (!auth) {
       console.error("Firebase auth not available.");
       return;
     }
-    console.log("Auth instance:", auth);
-    console.log("Starting Google Sign-in redirect");
     setIsProcessing(true);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ hd: "eganco.com" });
-    try{
-      await signInWithRedirect(auth, provider);
-      console.log("signInWithRedirect called");
-    } catch (error){
-      console.error("Google Sign-in failed:", error);
-      setIsProcessing(false);
-    }
-    
+    await signInWithRedirect(auth, provider);
   };
-
-  // --- UI states ---
+  
   if (isProcessing) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -121,7 +108,6 @@ export default function LoginPage() {
             Sign in with Google
           </Button>
           <p className="mt-4 text-center text-xs text-muted-foreground">Please use your company account.</p>
-          <p className="mt-4 text-center text-sm">{user ? `Signed in as: ${user.email}` : "User is not signed in."}</p>
         </CardContent>
       </Card>
     </div>
