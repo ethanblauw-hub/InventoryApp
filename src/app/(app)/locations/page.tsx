@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -7,29 +8,34 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ArrowUpDown } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
-type FilterState = {
-  location: string;
-  jobNumber: string;
-  jobName: string;
-  pmName: string;
-  fieldLeader: string;
-  description: string;
-  quantity: string;
-  lastUpdated: string;
+type SortableColumn = 
+  | 'location' 
+  | 'jobNumber' 
+  | 'jobName' 
+  | 'projectManager' 
+  | 'primaryFieldLeader' 
+  | 'description' 
+  | 'onHandQuantity' 
+  | 'lastUpdated';
+
+type SortDirection = 'asc' | 'desc';
+
+// Mock current user - this would be replaced with actual user data from an auth system
+const currentUser = {
+  name: 'Alice Johnson',
 };
 
+
 export default function LocationsPage() {
-  const [filters, setFilters] = useState<FilterState>({
-    location: '',
-    jobNumber: '',
-    jobName: '',
-    pmName: '',
-    fieldLeader: '',
-    description: '',
-    quantity: '',
-    lastUpdated: '',
-  });
+  const [search, setSearch] = useState('');
+  const [showMyJobsOnly, setShowMyJobsOnly] = useState(false);
+  const [sortColumn, setSortColumn] = useState<SortableColumn>('location');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const allBomItems = boms.flatMap(bom =>
     bom.items.map(item => ({
@@ -47,29 +53,58 @@ export default function LocationsPage() {
       location,
       ...item
     }))
-  ).sort((a, b) => {
-    if (a.location < b.location) return -1;
-    if (a.location > b.location) return 1;
-    if (a.jobNumber < b.jobNumber) return -1;
-    if (a.jobNumber > b.jobNumber) return 1;
-    return 0;
-  });
+  );
   
-  const handleFilterChange = (column: keyof FilterState, value: string) => {
-    setFilters(prev => ({ ...prev, [column]: value }));
+  const handleSort = (column: SortableColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
   };
 
   const filteredItems = locationItems.filter(item => {
+    if (showMyJobsOnly) {
+       if (item.projectManager !== currentUser.name && item.primaryFieldLeader !== currentUser.name) {
+        return false;
+      }
+    }
+
+    const searchTerm = search.toLowerCase();
+    if (!searchTerm) return true;
+
     return (
-      item.location.toLowerCase().includes(filters.location.toLowerCase()) &&
-      item.jobNumber.toLowerCase().includes(filters.jobNumber.toLowerCase()) &&
-      item.jobName.toLowerCase().includes(filters.jobName.toLowerCase()) &&
-      item.projectManager.toLowerCase().includes(filters.pmName.toLowerCase()) &&
-      item.primaryFieldLeader.toLowerCase().includes(filters.fieldLeader.toLowerCase()) &&
-      item.description.toLowerCase().includes(filters.description.toLowerCase()) &&
-      item.onHandQuantity.toString().includes(filters.quantity) &&
-      item.lastUpdated.toLowerCase().includes(filters.lastUpdated.toLowerCase())
+      item.location.toLowerCase().includes(searchTerm) ||
+      item.jobNumber.toLowerCase().includes(searchTerm) ||
+      item.jobName.toLowerCase().includes(searchTerm) ||
+      item.projectManager.toLowerCase().includes(searchTerm) ||
+      item.primaryFieldLeader.toLowerCase().includes(searchTerm) ||
+      item.description.toLowerCase().includes(searchTerm) ||
+      item.lastUpdated.toLowerCase().includes(searchTerm)
     );
+  });
+
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    const aValue = a[sortColumn];
+    const bValue = b[sortColumn];
+    
+    let comparison = 0;
+    if (aValue > bValue) {
+      comparison = 1;
+    } else if (aValue < bValue) {
+      comparison = -1;
+    }
+
+    // Secondary sort: if primary is equal, sort by location, then job number
+    if (comparison === 0) {
+      if (a.location < b.location) comparison = -1;
+      else if (a.location > b.location) comparison = 1;
+      else if (a.jobNumber < b.jobNumber) comparison = -1;
+      else if (a.jobNumber > b.jobNumber) comparison = 1;
+    }
+
+    return sortDirection === 'asc' ? comparison : comparison * -1;
   });
 
 
@@ -83,6 +118,20 @@ export default function LocationsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Item Locations</CardTitle>
+           <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <Input 
+              placeholder="Search locations, jobs, items..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-sm"
+            />
+            <div className="flex items-center space-x-2">
+              <Checkbox id="my-jobs-filter" checked={showMyJobsOnly} onCheckedChange={(checked) => setShowMyJobsOnly(!!checked)} />
+              <Label htmlFor="my-jobs-filter" className="cursor-pointer">
+                Only show materials for my jobs
+              </Label>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="relative w-full overflow-auto">
@@ -90,82 +139,57 @@ export default function LocationsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>
-                    Shelf Location
-                     <Input
-                        placeholder="Filter..."
-                        value={filters.location}
-                        onChange={(e) => handleFilterChange('location', e.target.value)}
-                        className="mt-1 h-8"
-                      />
+                     <Button variant="ghost" onClick={() => handleSort('location')} className="px-1">
+                      Shelf Location
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
                   </TableHead>
                   <TableHead>
-                    Job Number
-                    <Input
-                        placeholder="Filter..."
-                        value={filters.jobNumber}
-                        onChange={(e) => handleFilterChange('jobNumber', e.target.value)}
-                        className="mt-1 h-8"
-                      />
+                     <Button variant="ghost" onClick={() => handleSort('jobNumber')} className="px-1">
+                      Job Number
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
                   </TableHead>
                   <TableHead>
-                    Job Name
-                     <Input
-                        placeholder="Filter..."
-                        value={filters.jobName}
-                        onChange={(e) => handleFilterChange('jobName', e.target.value)}
-                        className="mt-1 h-8"
-                      />
+                     <Button variant="ghost" onClick={() => handleSort('jobName')} className="px-1">
+                      Job Name
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
                   </TableHead>
                   <TableHead>
-                    PM Name
-                     <Input
-                        placeholder="Filter..."
-                        value={filters.pmName}
-                        onChange={(e) => handleFilterChange('pmName', e.target.value)}
-                        className="mt-1 h-8"
-                      />
+                     <Button variant="ghost" onClick={() => handleSort('projectManager')} className="px-1">
+                      PM Name
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
                   </TableHead>
                   <TableHead>
-                    Primary Field Leader
-                     <Input
-                        placeholder="Filter..."
-                        value={filters.fieldLeader}
-                        onChange={(e) => handleFilterChange('fieldLeader', e.target.value)}
-                        className="mt-1 h-8"
-                      />
+                     <Button variant="ghost" onClick={() => handleSort('primaryFieldLeader')} className="px-1">
+                      Field Leader
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
                   </TableHead>
                   <TableHead>
-                    Item Description/Part Number
-                     <Input
-                        placeholder="Filter..."
-                        value={filters.description}
-                        onChange={(e) => handleFilterChange('description', e.target.value)}
-                        className="mt-1 h-8"
-                      />
+                     <Button variant="ghost" onClick={() => handleSort('description')} className="px-1">
+                      Item Description
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
                   </TableHead>
                   <TableHead className="text-right">
-                    On-Hand Qty
-                     <Input
-                        type="number"
-                        placeholder="Filter..."
-                        value={filters.quantity}
-                        onChange={(e) => handleFilterChange('quantity', e.target.value)}
-                        className="mt-1 h-8"
-                      />
+                    <Button variant="ghost" onClick={() => handleSort('onHandQuantity')} className="px-1">
+                      On-Hand Qty
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
                   </TableHead>
                   <TableHead>
-                    Last Updated
-                     <Input
-                        placeholder="Filter..."
-                        value={filters.lastUpdated}
-                        onChange={(e) => handleFilterChange('lastUpdated', e.target.value)}
-                        className="mt-1 h-8"
-                      />
+                    <Button variant="ghost" onClick={() => handleSort('lastUpdated')} className="px-1">
+                      Last Updated
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredItems.map(item => (
+                {sortedItems.map(item => (
                   <TableRow key={`${item.id}-${item.location}`}>
                     <TableCell>
                       <Badge variant="secondary">{item.location}</Badge>
