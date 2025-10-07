@@ -1,0 +1,244 @@
+{
+  "entities": {
+    "ItemCategory": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ItemCategory",
+      "type": "object",
+      "description": "Represents a customizable item category for organizing inventory items.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the item category."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item category (e.g., 'Electrical', 'Plumbing')."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the item category."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "Bom": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Bom",
+      "type": "object",
+      "description": "Represents a Bill of Materials (BOM), either an Order BOM (estimate) or a Design BOM (actual).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the BOM."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the BOM (e.g., 'Job 123 Order BOM', 'Job 123 Design BOM')."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of BOM ('Order' or 'Design')."
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "Date when the BOM was uploaded.",
+          "format": "date-time"
+        },
+        "jobId": {
+          "type": "string",
+          "description": "Reference to Job. (Relationship: Job 1:N Bom)"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "type",
+        "uploadDate",
+        "jobId"
+      ]
+    },
+    "InventoryItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "InventoryItem",
+      "type": "object",
+      "description": "Represents a single item in the inventory.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the inventory item."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the item."
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Current quantity of the item in inventory."
+        },
+        "itemCategoryId": {
+          "type": "string",
+          "description": "Reference to ItemCategory. (Relationship: ItemCategory 1:N InventoryItem)"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "quantity",
+        "itemCategoryId"
+      ]
+    },
+    "ShelfLocation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ShelfLocation",
+      "type": "object",
+      "description": "Represents a physical shelf location in the shop.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the shelf location."
+        },
+        "locationCode": {
+          "type": "string",
+          "description": "Code or name for the shelf location (e.g., 'A1', 'Shelf 2')."
+        },
+        "inventoryItemIds": {
+          "type": "array",
+          "description": "References to InventoryItems. (Relationship: InventoryItem N:N ShelfLocation)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "locationCode"
+      ]
+    },
+    "Job": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Job",
+      "type": "object",
+      "description": "Represents a job or project for which materials are being tracked.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the job."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the job."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the job."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/jobs/{jobId}",
+        "definition": {
+          "entityName": "Job",
+          "schema": {
+            "$ref": "#/backend/entities/Job"
+          },
+          "description": "Represents a job or project. Allows to store job specific details.",
+          "params": [
+            {
+              "name": "jobId",
+              "description": "The unique identifier for the job."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/jobs/{jobId}/boms/{bomId}",
+        "definition": {
+          "entityName": "Bom",
+          "schema": {
+            "$ref": "#/backend/entities/Bom"
+          },
+          "description": "Represents a bill of materials associated with a specific job.",
+          "params": [
+            {
+              "name": "jobId",
+              "description": "The unique identifier for the job."
+            },
+            {
+              "name": "bomId",
+              "description": "The unique identifier for the BOM."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/itemCategories/{itemCategoryId}",
+        "definition": {
+          "entityName": "ItemCategory",
+          "schema": {
+            "$ref": "#/backend/entities/ItemCategory"
+          },
+          "description": "Represents a category for inventory items.",
+          "params": [
+            {
+              "name": "itemCategoryId",
+              "description": "The unique identifier for the item category."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/inventoryItems/{inventoryItemId}",
+        "definition": {
+          "entityName": "InventoryItem",
+          "schema": {
+            "$ref": "#/backend/entities/InventoryItem"
+          },
+          "description": "Represents an item in the inventory.",
+          "params": [
+            {
+              "name": "inventoryItemId",
+              "description": "The unique identifier for the inventory item."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/shelfLocations/{shelfLocationId}",
+        "definition": {
+          "entityName": "ShelfLocation",
+          "schema": {
+            "$ref": "#/backend/entities/ShelfLocation"
+          },
+          "description": "Represents a shelf location in the shop, containing a denormalized list of inventory item ids.",
+          "params": [
+            {
+              "name": "shelfLocationId",
+              "description": "The unique identifier for the shelf location."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure for PartTrack is designed to provide a secure, scalable, and easily maintainable database for managing inventory, BOMs, and job-related data. The design prioritizes authorization independence and clarity through denormalization and structural segregation. The error mentioned suggests the application couldn't find the firebase config, so I did not include any role based access controls, but it can be added if this is fixed by the requested design.\n\nAuthorization Independence:\nAuthorization independence is achieved through path-based ownership for user-specific data and denormalization of authorization context where collaborative access is needed.\n\nQAPs (Rules are not Filters):\nThe structure enables secure list operations (QAPs) through structural segregation. Each top-level collection houses documents with a uniform security posture. Path based security is provided for user owned data.\n\nBased on the application requirements, the structure will follow this approach:\n\n1.  Jobs and BOMs: Jobs serve as containers for BOMs. BOMs are either 'Order' (estimate) or 'Design' (actual).  BOMs are structured as subcollections under Jobs to establish clear relationships. BOM data includes denormalized fields for efficient querying and filtering. The structure assumes the user must have access to the job to access the associated BOMs. Ownership is implicit via the path. Receive/Store is not modeled as this is a UI function only.\n\n2.  Inventory and Categories: Item Categories are stored in a top-level collection that can be centrally managed by the admin. Inventory Items are linked to Item Categories via the 'itemCategoryId' field. Shelf locations are stored in a top-level collection.  Inventory Items have a many-to-many relationship with Shelf Locations. A denormalized array of item IDs are stored in the ShelfLocation documents.\n\n3.  Shelf Locations: Each shelf location stores a list of inventory item IDs. This design enables easy lookups of items stored at a given location."
+  }
+}
