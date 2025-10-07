@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package } from "lucide-react";
-import { GoogleAuthProvider, signInWithRedirect, getRedirectResult, Auth, User } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, Auth } from "firebase/auth";
 
 /**
  * A reusable Google icon component.
@@ -37,9 +37,9 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
 
 /**
  * The login page for the application.
- * It handles the authentication flow using a redirect to Google's sign-in page.
- * It shows a loading state while processing authentication and redirects authenticated
- * users to the dashboard.
+ * It handles user authentication via a Google Sign-In popup.
+ * It redirects authenticated users to the dashboard and provides a sign-in button
+ * for unauthenticated users.
  *
  * @returns {JSX.Element} The rendered login page.
  */
@@ -47,73 +47,59 @@ export default function LoginPage() {
   const { user, isUserLoading } = useUser();
   const auth = useFirebaseAuth();
   const router = useRouter();
-  const [isProcessingSignIn, setIsProcessingSignIn] = useState(true);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
-  // This single, robust useEffect handles all authentication logic.
+  // This effect handles redirecting the user if they are already logged in.
   useEffect(() => {
-    // If the main user check is still running, or we don't have the auth service yet, wait.
-    if (isUserLoading || !auth) {
-      return;
-    }
-
-    // If a user object is already available, they are logged in. Redirect them.
-    if (user) {
+    // Wait until the initial user loading is complete.
+    // If we are in the middle of a sign-in attempt, don't redirect yet.
+    if (!isUserLoading && user && !isSigningIn) {
       router.push("/dashboard");
-      return;
     }
-
-    // If there's no user, we check for a redirect result.
-    // This is the critical step for users returning from Google.
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result && result.user) {
-          // A user just signed in via redirect.
-          // The onAuthStateChanged listener will handle the user state update.
-          // We can redirect them immediately.
-          router.push("/dashboard");
-        } else {
-          // No redirect result and no existing user session.
-          // It's now safe to show the login button.
-          setIsProcessingSignIn(false);
-        }
-      })
-      .catch((error) => {
-        // Handle errors from getRedirectResult, e.g., network issues.
-        console.error("Error getting redirect result:", error);
-        setIsProcessingSignIn(false); // Allow user to try signing in again.
-      });
-
-  }, [user, isUserLoading, auth, router]);
+  }, [user, isUserLoading, isSigningIn, router]);
 
   /**
-   * Initiates the Google sign-in process using a redirect.
+   * Initiates the Google sign-in process using a popup window.
    */
   const handleSignIn = async () => {
-    if (!auth) return;
+    if (!auth) {
+      console.error("Firebase auth service is not available.");
+      return;
+    }
 
-    // Set processing to true to show loading state while redirecting.
-    setIsProcessingSignIn(true); 
+    // Set signing-in state to true to prevent redirects and show loading state.
+    setIsSigningIn(true);
     const provider = new GoogleAuthProvider();
-    await signInWithRedirect(auth, provider);
+
+    try {
+      // Directly call signInWithPopup. The onAuthStateChanged listener
+      // managed by the useUser hook will detect the successful login.
+      await signInWithPopup(auth, provider);
+      // After a successful sign-in, the useEffect will trigger the redirect.
+    } catch (error) {
+      console.error("Error during sign-in:", error);
+      // If there's an error (e.g., popup closed), reset the signing-in state.
+      setIsSigningIn(false);
+    }
   };
 
-  // While checking for user state or processing a redirect, show a loading view.
-  if (isProcessingSignIn) {
+  // While checking user state or if a sign-in is in progress, show a loading view.
+  if (isUserLoading || isSigningIn) {
     return (
-        <div className="flex min-h-screen items-center justify-center bg-background">
-          <Card className="w-full max-w-sm">
-            <CardHeader className="text-center">
-                <div className="flex justify-center items-center mb-4">
-                    <Package className="size-8 shrink-0 text-accent" />
-                </div>
-              <CardTitle className="text-2xl font-bold">PartTrack</CardTitle>
-              <CardDescription>
-                Processing sign-in...
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-      );
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Card className="w-full max-w-sm">
+          <CardHeader className="text-center">
+            <div className="mb-4 flex items-center justify-center">
+              <Package className="size-8 shrink-0 text-accent" />
+            </div>
+            <CardTitle className="text-2xl font-bold">PartTrack</CardTitle>
+            <CardDescription>
+              Processing sign-in...
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
   }
 
   // If not loading and no user, show the login button.
@@ -121,23 +107,23 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-            <div className="flex justify-center items-center mb-4">
-                <Package className="size-8 shrink-0 text-accent" />
-            </div>
+          <div className="mb-4 flex items-center justify-center">
+            <Package className="size-8 shrink-0 text-accent" />
+          </div>
           <CardTitle className="text-2xl font-bold">PartTrack</CardTitle>
           <CardDescription>
             Sign in to access the inventory management system.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={handleSignIn} className="w-full">
-             <GoogleIcon className="mr-2 h-4 w-4" />
+          <Button onClick={handleSignIn} className="w-full" disabled={isSigningIn}>
+            <GoogleIcon className="mr-2 h-4 w-4" />
             Sign in with Google
           </Button>
           <p className="mt-4 text-center text-xs text-muted-foreground">
             Please use your company account.
           </p>
-          <p className="mt-4 text-center text-sm">
+           <p className="mt-4 text-center text-sm">
             {user ? `Signed in as: ${user.email}` : 'User is not signed in.'}
           </p>
         </CardContent>
