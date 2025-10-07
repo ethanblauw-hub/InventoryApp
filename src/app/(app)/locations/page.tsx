@@ -29,6 +29,7 @@ type SortDirection = 'asc' | 'desc';
 // Mock current user - this would be replaced with actual user data from an auth system
 const currentUser = {
   name: 'Alice Johnson',
+  isAdmin: true, // This would come from your auth system
 };
 
 
@@ -115,12 +116,14 @@ export default function LocationsPage() {
         title="Shelf Locations"
         description="A detailed inventory list by location."
       >
-        <Button asChild>
-          <Link href="/locations/new">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add/Import Shelves
-          </Link>
-        </Button>
+        {currentUser.isAdmin && (
+          <Button asChild>
+            <Link href="/locations/new">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add/Import Shelves
+            </Link>
+          </Button>
+        )}
       </PageHeader>
       
       <Card>

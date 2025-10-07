@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -34,6 +35,7 @@ const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.i
 // Mock current user - this would be replaced with actual user data from an auth system
 const currentUser = {
   name: 'Alice Johnson',
+  isAdmin: true,
 };
 
 export default function DashboardPage() {

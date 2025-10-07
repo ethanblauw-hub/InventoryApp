@@ -11,8 +11,8 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Upload } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { UserCog, Upload } from 'lucide-react';
 import Link from 'next/link';
 
 export default function NewLocationPage() {
@@ -22,6 +22,14 @@ export default function NewLocationPage() {
         title="Add/Import Shelves"
         description="Create new shelf locations individually or import a list."
       />
+
+       <Alert>
+        <UserCog className="h-4 w-4" />
+        <AlertTitle>Admin Access</AlertTitle>
+        <AlertDescription>
+          Managing shelf locations is restricted to administrators.
+        </AlertDescription>
+      </Alert>
 
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
         <Card>
