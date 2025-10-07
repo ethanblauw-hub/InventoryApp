@@ -1,12 +1,13 @@
 
 "use client";
 
-import { useAuth } from "@/hooks/use-auth";
+import { useUser, useAuth as useFirebaseAuth } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package } from "lucide-react";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
     return (
@@ -30,14 +31,28 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 export default function LoginPage() {
-  const { user, loading, signInWithGoogle } = useAuth();
+  const { user, isUserLoading } = useUser();
+  const auth = useFirebaseAuth();
   const router = useRouter();
 
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({
+        'hd': 'eganco.com'
+    });
+    try {
+      await signInWithPopup(auth, provider);
+      router.push("/dashboard");
+    } catch (error) {
+      console.error("Error signing in with Google: ", error);
+    }
+  };
+
   useEffect(() => {
-    if (!loading && user) {
+    if (!isUserLoading && user) {
       router.push("/dashboard");
     }
-  }, [user, loading, router]);
+  }, [user, isUserLoading, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
@@ -52,7 +67,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={signInWithGoogle} className="w-full" disabled={loading}>
+          <Button onClick={signInWithGoogle} className="w-full" disabled={isUserLoading}>
              <GoogleIcon className="mr-2 h-4 w-4" />
             Sign in with Google
           </Button>

@@ -1,21 +1,21 @@
 
 'use client';
-import { useAuth } from '@/hooks/use-auth';
+import { useUser } from '@/firebase';
 import { redirect } from 'next/navigation';
 import { useEffect } from 'react';
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { user, isUserLoading } = useUser();
 
   useEffect(() => {
-    if (!loading) {
+    if (!isUserLoading) {
       if (user) {
         redirect('/dashboard');
       } else {
         redirect('/login');
       }
     }
-  }, [user, loading]);
+  }, [user, isUserLoading]);
 
   // You can render a loading state here
   return null;

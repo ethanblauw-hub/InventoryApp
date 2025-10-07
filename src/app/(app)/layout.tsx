@@ -13,27 +13,38 @@ import {
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Package, LogOut } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth';
+import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { getAuth, signOut } from 'firebase/auth';
 
 export default function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading, logout } = useAuth();
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
 
+  const logout = async () => {
+    try {
+      await signOut(getAuth());
+      router.push("/login");
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
+  };
+
+
   useEffect(() => {
-    if (!loading && !user) {
+    if (!isUserLoading && !user) {
       router.push('/login');
     }
-  }, [user, loading, router]);
+  }, [user, isUserLoading, router]);
 
-  if (loading || !user) {
+  if (isUserLoading || !user) {
     // You can show a loading spinner here
     return <div className="flex h-screen w-screen items-center justify-center">Loading...</div>;
   }
