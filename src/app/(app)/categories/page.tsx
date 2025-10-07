@@ -12,6 +12,14 @@ import { Pencil, Trash2, UserCog } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AddCategoryDialog } from '@/components/add-category-dialog';
 
+/**
+ * A page component for managing work categories.
+ * It displays a list of existing categories and provides administrative actions
+ * like adding, editing, and deleting categories. Access to these actions is
+ * visually indicated as being restricted to administrators.
+ *
+ * @returns {JSX.Element} The rendered categories management page.
+ */
 export default function CategoriesPage() {
   return (
     <div className="space-y-6">

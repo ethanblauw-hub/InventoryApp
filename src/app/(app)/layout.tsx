@@ -20,14 +20,31 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { getAuth, signOut } from 'firebase/auth';
 
-export default function AppLayout({
-  children,
-}: {
+/**
+ * Props for the AppLayout component.
+ * @property {React.ReactNode} children - The pages and components to be rendered within the layout.
+ */
+type AppLayoutProps = {
   children: React.ReactNode;
-}) {
+};
+
+/**
+ * The main layout for the authenticated part of the application.
+ * It sets up the primary user interface structure, including the sidebar,
+ * header, and main content area. It also handles authentication by protecting
+ * routes and redirecting unauthenticated users to the login page.
+ *
+ * @param {AppLayoutProps} props - The props for the component.
+ * @returns {JSX.Element | JSX.Element} A loading indicator or the main app layout.
+ */
+export default function AppLayout({ children }: AppLayoutProps) {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
 
+  /**
+   * Handles the user logout process by signing them out of Firebase
+   * and redirecting to the login page.
+   */
   const logout = async () => {
     try {
       await signOut(getAuth());
@@ -37,18 +54,23 @@ export default function AppLayout({
     }
   };
 
-
+  // Effect to redirect unauthenticated users.
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push('/login');
     }
   }, [user, isUserLoading, router]);
 
+  // Display a loading state while checking user authentication status.
   if (isUserLoading || !user) {
-    // You can show a loading spinner here
     return <div className="flex h-screen w-screen items-center justify-center">Loading...</div>;
   }
 
+  /**
+   * Generates initials from a user's display name for use in an avatar fallback.
+   * @param {string | null | undefined} name - The user's full display name.
+   * @returns {string} The initials of the user.
+   */
   const getInitials = (name?: string | null) => {
     if (!name) return '';
     const names = name.split(' ');

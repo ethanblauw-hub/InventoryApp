@@ -1,4 +1,13 @@
 
+/**
+ * Represents a single item in the inventory.
+ * @property {string} id - Unique identifier for the inventory item.
+ * @property {string} name - Name of the item.
+ * @property {string} sku - Stock Keeping Unit or part number.
+ * @property {number} quantity - Current quantity of the item in inventory.
+ * @property {string} locationId - The ID of the shelf location where the item is stored.
+ * @property {string} imageId - An ID for a placeholder image.
+ */
 export type Item = {
   id: string;
   name: string;
@@ -8,6 +17,16 @@ export type Item = {
   imageId: string;
 };
 
+/**
+ * Represents a Bill of Materials (BOM), which is a list of parts for a particular job.
+ * @property {string} id - Unique identifier for the BOM.
+ * @property {string} jobNumber - The number of the associated job.
+ * @property {string} jobName - The name of the associated job.
+ * @property {string} projectManager - The name of the project manager.
+ * @property {string} primaryFieldLeader - The name of the field leader.
+ * @property {string} workCategoryId - The ID of the associated work category.
+ * @property {BomItem[]} items - An array of items included in this BOM.
+ */
 export type Bom = {
   id: string;
   jobNumber: string;
@@ -18,6 +37,18 @@ export type Bom = {
   items: BomItem[];
 };
 
+/**
+ * Represents a single line item within a Bill of Materials.
+ * @property {string} id - Unique identifier for the BOM item.
+ * @property {string} description - The description or part number of the item.
+ * @property {number} orderBomQuantity - The quantity specified in the Order BOM (estimate).
+ * @property {number} designBomQuantity - The quantity specified in the Design BOM (actual).
+ * @property {number} onHandQuantity - The current quantity available in the shop.
+ * @property {number} shippedQuantity - The quantity that has been shipped to the job site.
+ * @property {string[]} shelfLocations - An array of shelf location names where the item is stored.
+ * @property {string} lastUpdated - The date the item was last updated, in YYYY-MM-DD format.
+ * @property {string} imageId - An ID for a placeholder image.
+ */
 export type BomItem = {
   id: string;
   description: string; // Part Number
@@ -30,7 +61,12 @@ export type BomItem = {
   imageId: string;
 };
 
-
+/**
+ * Represents a physical shelf location in the shop.
+ * @property {string} id - Unique identifier for the shelf location.
+ * @property {string} name - The code or name for the shelf location (e.g., 'A1', 'Shelf 2').
+ * @property {string[]} items - An array of inventory item IDs stored at this location.
+ */
 export type Location = {
   id:string;
   name: string;
@@ -39,6 +75,9 @@ export type Location = {
 
 /**
  * Represents a customizable work category for organizing BOMs by type of work (e.g., 'Lighting', 'Gear').
+ * @property {string} id - Unique identifier for the category.
+ * @property {string} name - The name of the work category.
+ * @property {string} description - A brief description of the work category.
  */
 export type Category = {
   id: string;
@@ -46,6 +85,7 @@ export type Category = {
   description: string;
 };
 
+// Mock data for inventory items.
 export const items: Item[] = [
   { id: 'item-1', name: 'Steel Beam 24ft', sku: 'STL-BM-24', quantity: 150, locationId: 'loc-1', imageId: 'steel_beam' },
   { id: 'item-2', name: 'Anchor Bolt 3/4"', sku: 'ANC-BLT-75', quantity: 2500, locationId: 'loc-2', imageId: 'anchor_bolt' },
@@ -54,6 +94,7 @@ export const items: Item[] = [
   { id: 'item-5', name: 'Decking Panel 12x4', sku: 'DECK-PNL-12-4', quantity: 200, locationId: 'loc-3', imageId: 'decking_panel' },
 ];
 
+// Mock data for Bills of Materials.
 export const boms: Bom[] = [
   { 
     id: 'bom-1', 
@@ -82,6 +123,7 @@ export const boms: Bom[] = [
   },
 ];
 
+// Mock data for shelf locations.
 export const locations: Location[] = [
     { id: 'loc-1', name: 'Aisle A, Shelf 1', items: ['item-1', 'item-3'] },
     { id: 'loc-2', name: 'Aisle B, Bin 4', items: ['item-2', 'item-4'] },
@@ -90,6 +132,7 @@ export const locations: Location[] = [
     { id: 'loc-5', name: 'Safety Cabinet', items: [] },
 ];
 
+// Mock data for work categories.
 export const categories: Category[] = [
     { id: 'cat-1', name: 'Lighting', description: 'Work related to electrical lighting fixtures and installation.' },
     { id: 'cat-2', name: 'Gear', description: 'Tools, safety equipment, and other operational gear.' },

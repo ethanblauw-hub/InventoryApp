@@ -44,9 +44,25 @@ const containers = [
   },
 ];
 
+/**
+ * A page component that displays a list of all containers in the shop.
+ * It provides a high-level overview of each container, including its associated job,
+ * category, type, and location. Users can click on a container to navigate to its
+ * detailed view or receive a new container.
+ *
+ * Note: This component currently uses mock data. In a real application,
+ * it would fetch data from a database or API.
+ *
+ * @returns {JSX.Element} The rendered containers list page.
+ */
 export default function ContainersPage() {
   const router = useRouter();
 
+  /**
+   * Handles the click event on a table row.
+   * Navigates the user to the detail page for the selected container.
+   * @param {string} containerId - The unique identifier of the container.
+   */
   const handleRowClick = (containerId: string) => {
     router.push(`/containers/${containerId}`);
   };

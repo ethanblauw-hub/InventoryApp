@@ -36,6 +36,14 @@ const currentUser = {
   isAdmin: true,
 };
 
+/**
+ * The main dashboard page of the application, which serves as the primary inventory overview.
+ * It displays a comprehensive list of all items, both those associated with a Bill of Materials (BOM)
+ * and standalone "Shop Stock" items. It includes functionality for searching and filtering items,
+ * such as viewing only items related to the current user's jobs.
+ *
+ * @returns {JSX.Element} The rendered dashboard page.
+ */
 export default function DashboardPage() {
   const [search, setSearch] = useState('');
   const [showMyJobsOnly, setShowMyJobsOnly] = useState(false);
@@ -113,6 +121,10 @@ export default function DashboardPage() {
     );
   });
   
+  /**
+   * Navigates to the detail page for a specific BOM.
+   * @param {string} bomId - The ID of the BOM to view.
+   */
   const handleBomRedirect = (bomId: string) => {
     router.push(`/boms/${bomId.replace('bom-', '')}`);
   }

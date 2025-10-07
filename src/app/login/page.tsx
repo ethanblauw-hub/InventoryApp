@@ -9,6 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Package } from "lucide-react";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
+/**
+ * A reusable Google icon component.
+ * @param {React.SVGProps<SVGSVGElement>} props - Standard SVG properties.
+ * @returns {JSX.Element} The rendered SVG icon.
+ */
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
     return (
         <svg
@@ -16,7 +21,7 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
             xmlns="http://www.w3.org/2000/svg"
             width="24"
             height="24"
-            viewBox="0 0 24 24"
+            viewBox="0 0 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
@@ -30,11 +35,23 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
     )
 }
 
+/**
+ * The login page for the application.
+ * It provides a "Sign in with Google" button and handles the authentication flow.
+ * If a user is already authenticated, it redirects them to the dashboard.
+ *
+ * @returns {JSX.Element} The rendered login page.
+ */
 export default function LoginPage() {
   const { user, isUserLoading } = useUser();
   const auth = useFirebaseAuth();
   const router = useRouter();
 
+  /**
+   * Initiates the Google sign-in process using a popup.
+   * It is configured to only allow accounts from a specific domain.
+   * On successful sign-in, it redirects the user to the dashboard.
+   */
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({
@@ -48,6 +65,7 @@ export default function LoginPage() {
     }
   };
 
+  // Effect to redirect already authenticated users to the dashboard.
   useEffect(() => {
     if (!isUserLoading && user) {
       router.push("/dashboard");

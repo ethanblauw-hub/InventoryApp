@@ -11,7 +11,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useForm, useFieldArray, Controller, Control } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -28,11 +28,17 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+/**
+ * Zod schema for validating a single item within a container.
+ */
 const itemSchema = z.object({
   description: z.string().min(1, "Item description is required."),
   quantity: z.coerce.number().min(1, "Quantity must be at least 1."),
 });
 
+/**
+ * Zod schema for validating a single container.
+ */
 const containerSchema = z.object({
   type: z.string().min(1, "Container type is required."),
   items: z.array(itemSchema).min(1, "At least one item is required per container."),
@@ -40,14 +46,28 @@ const containerSchema = z.object({
   notes: z.string().optional(),
 });
 
+/**
+ * Zod schema for the main receiving form.
+ */
 const formSchema = z.object({
   jobNumber: z.string().optional(),
   workCategory: z.string().optional(),
   containers: z.array(containerSchema).min(1, "At least one container is required."),
 });
 
+/**
+ * Type definition for the form values, inferred from the Zod schema.
+ */
 type ReceiveFormValues = z.infer<typeof formSchema>;
 
+/**
+ * A page component for receiving new materials and storing them.
+ * It features a dynamic form that allows users to log one or more containers,
+ * add multiple items to each container, associate them with a job, and assign them
+ * to a shelf location.
+ *
+ * @returns {JSX.Element} The rendered receive/store page.
+ */
 export default function ReceiveStorePage() {
   const { toast } = useToast();
   const form = useForm<ReceiveFormValues>({
@@ -62,6 +82,10 @@ export default function ReceiveStorePage() {
     name: "containers",
   });
 
+  /**
+   * Handles the form submission. Logs the form data and displays a success toast.
+   * @param {ReceiveFormValues} values - The validated form data.
+   */
   function onSubmit(values: ReceiveFormValues) {
     console.log(values);
     toast({
@@ -299,8 +323,24 @@ export default function ReceiveStorePage() {
   );
 }
 
+/**
+ * Props for the ItemArray component.
+ * @property {number} containerIndex - The index of the parent container in the form.
+ * @property {Control<ReceiveFormValues>} control - The React Hook Form control object.
+ */
+type ItemArrayProps = {
+  containerIndex: number;
+  control: Control<ReceiveFormValues>;
+};
 
-function ItemArray({ containerIndex, control }: { containerIndex: number, control: any }) {
+/**
+ * A component that manages a dynamic array of item input fields for a single container.
+ * It allows users to add or remove items from the container they are logging.
+ *
+ * @param {ItemArrayProps} props - The props for the component.
+ * @returns {JSX.Element} The rendered item array section.
+ */
+function ItemArray({ containerIndex, control }: ItemArrayProps) {
   const { fields, append, remove } = useFieldArray({
     control,
     name: `containers.${containerIndex}.items`

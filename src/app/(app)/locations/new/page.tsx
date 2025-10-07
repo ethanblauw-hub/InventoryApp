@@ -15,6 +15,14 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { UserCog, Upload } from 'lucide-react';
 import Link from 'next/link';
 
+/**
+ * A page component for adding new shelf locations.
+ * It provides two methods for creating locations: creating a single shelf
+ * manually or importing a list of shelves from a CSV file. This page is
+ * intended for administrative use.
+ *
+ * @returns {JSX.Element} The rendered new location page.
+ */
 export default function NewLocationPage() {
   return (
     <div className="space-y-6">

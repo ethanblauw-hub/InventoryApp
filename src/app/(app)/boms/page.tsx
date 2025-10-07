@@ -20,9 +20,21 @@ import { BomImportDialog } from '@/components/bom-import-dialog';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 
+/**
+ * A page component that displays a list of all uploaded Bills of Materials (BOMs).
+ * It allows users to view high-level information about each BOM and click on a row
+ * to navigate to the detailed view of that BOM. It also provides an option to import new BOMs.
+ *
+ * @returns {JSX.Element} The rendered BOMs list page.
+ */
 export default function BomsPage() {
   const router = useRouter();
 
+  /**
+   * Handles the click event on a table row.
+   * Navigates the user to the detail page for the selected BOM.
+   * @param {string} bomId - The unique identifier of the BOM.
+   */
   const handleRowClick = (bomId: string) => {
     router.push(`/boms/${bomId.replace('bom-', '')}`);
   };

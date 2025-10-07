@@ -27,7 +27,26 @@ import { UpdateBOMDialog } from '@/components/update-bom-dialog';
 
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
 
-export default function BomDetailPage({ params }: { params: { id: string } }) {
+/**
+ * Props for the BomDetailPage component.
+ * @property {object} params - The route parameters.
+ * @property {string} params.id - The ID of the Bill of Materials to display.
+ */
+type BomDetailPageProps = {
+  params: {
+    id: string;
+  };
+};
+
+/**
+ * A page component that displays the detailed contents of a single Bill of Materials (BOM).
+ * It shows item descriptions, quantities, and other relevant information for a specific job BOM.
+ * If the BOM is not found, it will render a 404 page.
+ *
+ * @param {BomDetailPageProps} props - The props for the component.
+ * @returns {JSX.Element} The rendered BOM detail page.
+ */
+export default function BomDetailPage({ params }: BomDetailPageProps) {
   const bom = boms.find((b) => b.id === `bom-${params.id}`);
   
   if (!bom) {

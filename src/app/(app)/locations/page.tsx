@@ -21,6 +21,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
+/**
+ * Defines the columns that can be used for sorting the locations table.
+ */
 type SortableColumn = 
   | 'location' 
   | 'jobNumber' 
@@ -31,6 +34,9 @@ type SortableColumn =
   | 'onHandQuantity' 
   | 'lastUpdated';
 
+/**
+ * Defines the possible sort directions.
+ */
 type SortDirection = 'asc' | 'desc';
 
 // Mock current user - this would be replaced with actual user data from an auth system
@@ -39,7 +45,13 @@ const currentUser = {
   isAdmin: true, // This would come from your auth system
 };
 
-
+/**
+ * A page component that displays a detailed inventory list organized by shelf location.
+ * It allows users to see which items are on which shelves, search the inventory, filter by their jobs,
+ * and sort the data. Administrators can also see shelf occupancy statistics and navigate to add new shelves.
+ *
+ * @returns {JSX.Element} The rendered locations page.
+ */
 export default function LocationsPage() {
   const [search, setSearch] = useState('');
   const [showMyJobsOnly, setShowMyJobsOnly] = useState(false);
@@ -68,6 +80,11 @@ export default function LocationsPage() {
     }))
   );
   
+  /**
+   * Handles sorting of the table columns. Toggles direction if the same column is clicked,
+   * otherwise sets the new column and defaults to ascending order.
+   * @param {SortableColumn} column - The column to sort by.
+   */
   const handleSort = (column: SortableColumn) => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');

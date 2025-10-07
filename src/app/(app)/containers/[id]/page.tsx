@@ -44,7 +44,29 @@ const containerDetails = {
   ],
 };
 
-export default function ContainerDetailsPage({ params }: { params: { id: string } }) {
+/**
+ * Props for the ContainerDetailsPage component.
+ * @property {object} params - The route parameters.
+ * @property {string} params.id - The ID of the container to display.
+ */
+type ContainerDetailsPageProps = {
+  params: {
+    id: string;
+  };
+};
+
+/**
+ * A page component that displays the detailed information for a single container.
+ * It shows the container's metadata, its contents, its location in the shop,
+ * and provides actions for managing the container.
+ *
+ * Note: This component currently uses mock data. In a real application,
+ * it would fetch data based on the `params.id`.
+ *
+ * @param {ContainerDetailsPageProps} props - The props for the component.
+ * @returns {JSX.Element} The rendered container details page.
+ */
+export default function ContainerDetailsPage({ params }: ContainerDetailsPageProps) {
   // In a real app, you'd use params.id to fetch container data
   const container = containerDetails;
 
