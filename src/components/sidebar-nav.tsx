@@ -20,6 +20,7 @@ import Link from 'next/link';
 const navItems = [
   { href: '/dashboard', label: 'Inventory', icon: LayoutDashboard },
   { href: '/boms', label: 'BOMs', icon: FileText },
+  { href: '/containers', label: 'Containers', icon: Container },
   { href: '/locations', label: 'Shelf Location List', icon: Warehouse },
   { href: '/receive', label: 'Receive/Store', icon: PackagePlus },
   { href: '/categories', label: 'Categories', icon: Tags },
@@ -44,21 +45,6 @@ export function SidebarNav() {
           </SidebarMenuButton>
         </SidebarMenuItem>
       ))}
-       {/* Conditional Item for Container Details for demo */}
-       { (pathname.startsWith('/containers')) && (
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={true}
-              tooltip="Container Details"
-            >
-              <Link href={pathname}>
-                <Container />
-                <span>Container Details</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        )}
     </SidebarMenu>
   );
 }
