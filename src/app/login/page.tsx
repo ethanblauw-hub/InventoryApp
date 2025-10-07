@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package } from "lucide-react";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
 
 /**
  * A reusable Google icon component.
@@ -50,7 +50,8 @@ export default function LoginPage() {
 
   // This effect handles redirection based on authentication state.
   useEffect(() => {
-    // If the user object is available (meaning they are logged in), redirect to the dashboard.
+    // If we're not loading and a user object is available, redirect to the dashboard.
+    // This handles the case where a user is already logged in and revisits the login page.
     if (!isUserLoading && user) {
       router.push("/dashboard");
     }
@@ -58,6 +59,8 @@ export default function LoginPage() {
 
   /**
    * Initiates the Google sign-in process using a popup.
+   * A new user is created in Firestore if they don't already exist.
+   * Handles user navigation upon successful sign-in.
    */
   const signInWithGoogle = async () => {
     if (!auth) return;
@@ -65,16 +68,17 @@ export default function LoginPage() {
     setIsSigningIn(true);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({
-        'hd': 'eganco.com'
+        // Optional: Force account selection
+        // prompt: 'select_account'
     });
 
     try {
-      // The onAuthStateChanged listener in useUser() will handle the successful login
-      // and trigger the redirect in the useEffect above.
       await signInWithPopup(auth, provider);
+      // The onAuthStateChanged listener in useUser() will detect the new user.
+      // The useEffect above will then handle the redirect to the dashboard.
     } catch (error: any) {
-      // Handle potential errors like "popup-closed-by-user" gracefully.
       console.error("Error during sign-in:", error.message);
+      // If the user closes the popup or another error occurs, reset the state.
       setIsSigningIn(false);
     }
   };
@@ -112,7 +116,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={signInWithGoogle} className="w-full">
+          <Button onClick={signInWithGoogle} className="w-full" disabled={isSigningIn}>
              <GoogleIcon className="mr-2 h-4 w-4" />
             Sign in with Google
           </Button>
