@@ -5,12 +5,13 @@ import { getAuth } from "firebase/auth";
 
 // This is a public config, so it's safe to expose.
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID",
+  "projectId": "studio-1025404824-b0cf8",
+  "appId": "1:394731799727:web:8839bee90c79b248bfc05a",
+  "apiKey": "AIzaSyAE_7BU9x8nzrmBSdnl2iVylbujQDrZsY4",
+  "authDomain": "studio-1025404824-b0cf8.firebaseapp.com",
+  "measurementId": "",
+  "messagingSenderId": "394731799727",
+  "storageBucket": "studio-1025404824-b0cf8.appspot.com"
 };
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
