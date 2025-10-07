@@ -1,4 +1,6 @@
 
+'use client';
+
 import { PageHeader } from '@/components/page-header';
 import {
   Card,
@@ -21,6 +23,8 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2, FileText, PlusCircle, Ship, History } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { boms } from '@/lib/data';
+import Link from 'next/link';
 
 // Mock data for a single container - this would be fetched based on the [id] param
 const containerDetails = {
@@ -70,6 +74,10 @@ export default function ContainerDetailsPage({ params }: ContainerDetailsPagePro
   // In a real app, you'd use params.id to fetch container data
   const container = containerDetails;
 
+  // Find the corresponding BOM based on the job name
+  const relatedBom = boms.find(bom => bom.jobName === container.jobName);
+  const bomId = relatedBom ? relatedBom.id.replace('bom-', '') : null;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -77,8 +85,20 @@ export default function ContainerDetailsPage({ params }: ContainerDetailsPagePro
         description={container.jobName || container.departmentName}
       >
         <div className="flex flex-wrap gap-2">
-            <Button variant="outline"><FileText className="mr-2 h-4 w-4" /> Open BOM</Button>
-            <Button><PlusCircle className="mr-2 h-4 w-4" /> Add Item</Button>
+            {bomId && (
+              <Button variant="outline" asChild>
+                <Link href={`/boms/${bomId}`}>
+                  <FileText className="mr-2 h-4 w-4" /> Open BOM
+                </Link>
+              </Button>
+            )}
+            {bomId && (
+               <Button asChild>
+                <Link href={`/boms/${bomId}?action=add&containerId=${container.id}`}>
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+                </Link>
+              </Button>
+            )}
             <Button variant="secondary"><Ship className="mr-2 h-4 w-4" /> Ship Container</Button>
             <Button variant="ghost"><History className="mr-2 h-4 w-4" /> View Change Log</Button>
         </div>
