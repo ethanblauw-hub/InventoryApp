@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package } from "lucide-react";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "firebase/auth";
 
 /**
  * A reusable Google icon component.
@@ -48,29 +48,39 @@ export default function LoginPage() {
   const router = useRouter();
 
   /**
-   * Initiates the Google sign-in process using a popup.
+   * Initiates the Google sign-in process using a redirect.
    * It is configured to only allow accounts from a specific domain.
-   * On successful sign-in, it redirects the user to the dashboard.
    */
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({
         'hd': 'eganco.com'
     });
-    try {
-      await signInWithPopup(auth, provider);
-      router.push("/dashboard");
-    } catch (error) {
-      console.error("Error signing in with Google: ", error);
-    }
+    // Use signInWithRedirect instead of signInWithPopup
+    await signInWithRedirect(auth, provider);
   };
 
-  // Effect to redirect already authenticated users to the dashboard.
+  // Effect to handle the redirect result and redirect already authenticated users.
   useEffect(() => {
+    // If a user is already authenticated, redirect to the dashboard.
     if (!isUserLoading && user) {
       router.push("/dashboard");
+      return;
     }
-  }, [user, isUserLoading, router]);
+
+    // Check for the redirect result after authentication.
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          // User is signed in. Redirect to the dashboard.
+          router.push("/dashboard");
+        }
+      })
+      .catch((error) => {
+        // Handle Errors here.
+        console.error("Error getting redirect result: ", error);
+      });
+  }, [user, isUserLoading, auth, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
