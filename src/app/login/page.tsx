@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package } from "lucide-react";
-import { GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
+import {setPersistence, signInWithPopup, inMemoryPersistence, GoogleAuthProvider, signInWithRedirect, User } from "firebase/auth";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -49,7 +49,11 @@ export default function LoginPage() {
     setIsSigningIn(true);
     try {
       const provider = new GoogleAuthProvider();
+      await setPersistence(auth, inMemoryPersistence);
+      
       await signInWithPopup(auth, provider);
+      console.log("Auth domain:", auth.config.authDomain);
+      console.log('Current Location:', window.location.origin);
       // The useEffect above will handle the redirect on user state change.
     } catch (error) {
       console.error("Error signing in with Google popup:", error);
