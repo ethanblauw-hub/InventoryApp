@@ -17,10 +17,10 @@
  * @property {string} appId - The ID of the Firebase app.
  */
 export const firebaseConfig = {
-  apiKey: "AIzaSyAE_7BU9x8nzrmBSdnl2iVylbujQDrZsY4",
-  authDomain: "studio-1025404824-b0cf8.firebaseapp.com",
-  projectId: "studio-1025404824-b0cf8",
-  storageBucket: "studio-1025404824-b0cf8.appspot.com",
-  messagingSenderId: "394731799727",
-  appId: "1:394731799727:web:8839bee90c79b248bfc05a",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
