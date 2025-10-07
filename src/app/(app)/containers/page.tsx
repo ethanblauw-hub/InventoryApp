@@ -28,7 +28,7 @@ const containers = [
     id: 'cont-123',
     jobNumber: 'J1234',
     jobName: 'Job 1234 - Phase 1',
-    itemCategory: 'Structural Steel',
+    workCategory: 'Lighting',
     containerType: 'Pallet',
     shelfLocation: 'Aisle A, Shelf 1',
     itemCount: 2,
@@ -37,7 +37,7 @@ const containers = [
     id: 'cont-456',
     jobNumber: 'J5678',
     jobName: 'Job 5678 - Initial',
-    itemCategory: 'Gear',
+    workCategory: 'Gear',
     containerType: 'Cart',
     shelfLocation: 'Receiving Dock',
     itemCount: 5,
@@ -92,7 +92,7 @@ export default function ContainersPage() {
                     <TableCell className="font-mono">{container.id}</TableCell>
                     <TableCell className="font-medium">{container.jobName} ({container.jobNumber})</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{container.itemCategory}</Badge>
+                      <Badge variant="secondary">{container.workCategory}</Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{container.containerType}</TableCell>
                     <TableCell className="text-muted-foreground">{container.shelfLocation}</TableCell>

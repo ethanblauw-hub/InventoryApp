@@ -29,7 +29,7 @@ const containerDetails = {
   jobName: 'Job 1234 - Phase 1',
   departmentName: null,
   receiptDate: '2023-11-20',
-  itemCategory: 'Structural Steel',
+  workCategory: 'Lighting',
   containerType: 'Pallet',
   shelfLocation: 'Aisle A, Shelf 1',
   imageUrl: 'https://picsum.photos/seed/cont-123/600/400',
@@ -79,8 +79,8 @@ export default function ContainerDetailsPage({ params }: { params: { id: string 
                             <p>{container.receiptDate}</p>
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-muted-foreground">Item Category</p>
-                            <p><Badge variant="secondary">{container.itemCategory}</Badge></p>
+                            <p className="text-sm font-medium text-muted-foreground">Work Category</p>
+                            <p><Badge variant="secondary">{container.workCategory}</Badge></p>
                         </div>
                          <div>
                             <p className="text-sm font-medium text.muted.foreground">Container Type</p>
