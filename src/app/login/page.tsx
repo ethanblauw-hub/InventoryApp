@@ -4,10 +4,10 @@
 import { useUser, useAuth as useFirebaseAuth } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package } from "lucide-react";
-import { GoogleAuthProvider, signInWithRedirect, getRedirectResult, Auth } from "firebase/auth";
+import { GoogleAuthProvider, signInWithRedirect, getRedirectResult, Auth, User } from "firebase/auth";
 
 /**
  * A reusable Google icon component.
@@ -37,8 +37,9 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
 
 /**
  * The login page for the application.
- * It provides a "Sign in with Google" button and handles the authentication flow
- * using a popup. If a user is already authenticated, it redirects them to the dashboard.
+ * It handles the authentication flow using a redirect to Google's sign-in page.
+ * It shows a loading state while processing authentication and redirects authenticated
+ * users to the dashboard.
  *
  * @returns {JSX.Element} The rendered login page.
  */
@@ -48,54 +49,56 @@ export default function LoginPage() {
   const router = useRouter();
   const [isProcessingSignIn, setIsProcessingSignIn] = useState(true);
 
-  // This effect handles the redirect result from Google
+  // This single, robust useEffect handles all authentication logic.
   useEffect(() => {
-    if (!auth) {
-      // If auth is not ready, wait.
+    // If the main user check is still running, or we don't have the auth service yet, wait.
+    if (isUserLoading || !auth) {
       return;
     }
 
+    // If a user object is already available, they are logged in. Redirect them.
+    if (user) {
+      router.push("/dashboard");
+      return;
+    }
+
+    // If there's no user, we check for a redirect result.
+    // This is the critical step for users returning from Google.
     getRedirectResult(auth)
       .then((result) => {
-        // If result is null, it means the user just landed on the page
-        // without coming from a redirect. If a user is found, they are
-        // already logged in from a previous session.
-        if (result || user) {
+        if (result && result.user) {
+          // A user just signed in via redirect.
+          // The onAuthStateChanged listener will handle the user state update.
+          // We can redirect them immediately.
           router.push("/dashboard");
         } else {
-          // No redirect result, and no user from a previous session.
-          // It's safe to allow a sign-in attempt.
+          // No redirect result and no existing user session.
+          // It's now safe to show the login button.
           setIsProcessingSignIn(false);
         }
       })
       .catch((error) => {
+        // Handle errors from getRedirectResult, e.g., network issues.
         console.error("Error getting redirect result:", error);
-        setIsProcessingSignIn(false);
+        setIsProcessingSignIn(false); // Allow user to try signing in again.
       });
-  }, [auth, router, user]);
 
-  // This effect handles redirecting an already authenticated user
-  // who lands on the login page directly.
-  useEffect(() => {
-    // We wait until the redirect processing is done and we are sure the user is logged in.
-    if (!isProcessingSignIn && !isUserLoading && user) {
-      router.push("/dashboard");
-    }
-  }, [user, isUserLoading, isProcessingSignIn, router]);
-  
+  }, [user, isUserLoading, auth, router]);
+
   /**
    * Initiates the Google sign-in process using a redirect.
    */
   const handleSignIn = async () => {
     if (!auth) return;
 
-    setIsProcessingSignIn(true);
+    // Set processing to true to show loading state while redirecting.
+    setIsProcessingSignIn(true); 
     const provider = new GoogleAuthProvider();
     await signInWithRedirect(auth, provider);
   };
 
-  // While checking for redirect result or user state, show a loading state.
-  if (isProcessingSignIn || isUserLoading) {
+  // While checking for user state or processing a redirect, show a loading view.
+  if (isProcessingSignIn) {
     return (
         <div className="flex min-h-screen items-center justify-center bg-background">
           <Card className="w-full max-w-sm">
