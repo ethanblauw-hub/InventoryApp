@@ -23,6 +23,7 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { notFound } from 'next/navigation';
+import { UpdateBOMDialog } from '@/components/update-bom-dialog';
 
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
 
@@ -41,12 +42,15 @@ export default function BomDetailPage({ params }: { params: { id: string } }) {
         title={`${bom.jobName} (${bom.jobNumber})`}
         description={`PM: ${bom.projectManager} | Field Leader: ${bom.primaryFieldLeader}`}
       >
-        <Button variant="outline" asChild>
-          <Link href="/boms">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to All BOMs
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/boms">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to All BOMs
+            </Link>
+          </Button>
+          <UpdateBOMDialog bom={bom} />
+        </div>
       </PageHeader>
       
       <Card>
