@@ -1,3 +1,4 @@
+
 /**
  * @file This file serves as the main entry point for Firebase services.
  *
@@ -10,10 +11,9 @@
 
 import { FirebaseProvider, useUser, useAuth, useFirestore, useFirebaseApp } from './provider';
 import { firebaseConfig } from './config';
-import { FirebaseClientProvider } from './client-provider';
+
 
 export {
-  FirebaseClientProvider,
   FirebaseProvider,
   firebaseConfig,
   useUser,

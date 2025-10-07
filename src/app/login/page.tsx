@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser, useAuth as useFirebaseAuth } from "@/firebase";
@@ -6,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package } from "lucide-react";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, User } from "firebase/auth";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -34,7 +35,8 @@ export default function LoginPage() {
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
-    if (!isUserLoading && user) {
+    // Redirect if user is logged in and not in the process of signing in
+    if (user && !isUserLoading) {
       router.push("/dashboard");
     }
   }, [user, isUserLoading, router]);
@@ -47,17 +49,17 @@ export default function LoginPage() {
     setIsSigningIn(true);
     try {
       const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ hd: "eganco.com" });
       await signInWithPopup(auth, provider);
-      // The useEffect will handle the redirect on user state change.
+      // The useEffect above will handle the redirect on user state change.
     } catch (error) {
       console.error("Error signing in with Google popup:", error);
-      setIsSigningIn(false); // Reset on error
+    } finally {
+      setIsSigningIn(false);
     }
   };
-  
+
   // While loading user state or signing in, show a loading message.
-  if (isUserLoading || isSigningIn || user) {
+  if (isUserLoading || user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Card className="w-full max-w-sm">
@@ -86,7 +88,7 @@ export default function LoginPage() {
         <CardContent>
           <Button onClick={handleSignIn} className="w-full" disabled={isSigningIn}>
             <GoogleIcon className="mr-2 h-4 w-4" />
-            Sign in with Google
+            {isSigningIn ? "Signing in..." : "Sign in with Google"}
           </Button>
           <p className="mt-4 text-center text-xs text-muted-foreground">Please use your company account.</p>
         </CardContent>
