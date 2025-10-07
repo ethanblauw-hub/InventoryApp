@@ -34,9 +34,9 @@ export default function LoginPage() {
   const router = useRouter();
   const [isSigningIn, setIsSigningIn] = useState(false);
 
+  // This effect handles redirection after a user's state changes.
   useEffect(() => {
-    // Redirect if user is logged in and not in the process of signing in
-    if (user && !isUserLoading) {
+    if (!isUserLoading && user) {
       router.push("/dashboard");
     }
   }, [user, isUserLoading, router]);
@@ -53,13 +53,12 @@ export default function LoginPage() {
       // The useEffect above will handle the redirect on user state change.
     } catch (error) {
       console.error("Error signing in with Google popup:", error);
-    } finally {
-      setIsSigningIn(false);
+      setIsSigningIn(false); // Reset signing in state on error
     }
   };
 
-  // While loading user state or signing in, show a loading message.
-  if (isUserLoading || user) {
+  // While loading user state, show a loading message.
+  if (isUserLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Card className="w-full max-w-sm">
@@ -75,6 +74,7 @@ export default function LoginPage() {
     );
   }
 
+  // If user is not logged in, show the login page.
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <Card className="w-full max-w-sm">
