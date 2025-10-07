@@ -4,10 +4,10 @@
 import { useUser, useAuth as useFirebaseAuth } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package } from "lucide-react";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { GoogleAuthProvider, signInWithRedirect, getRedirectResult, Auth } from "firebase/auth";
 
 /**
  * A reusable Google icon component.
@@ -46,41 +46,56 @@ export default function LoginPage() {
   const { user, isUserLoading } = useUser();
   const auth = useFirebaseAuth();
   const router = useRouter();
-  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isProcessingSignIn, setIsProcessingSignIn] = useState(true);
 
-  // This effect handles redirection.
-  // If the user object becomes available (and we're not in the middle of signing in), redirect to the dashboard.
+  // This effect handles the redirect result from Google
   useEffect(() => {
-    if (!isUserLoading && user) {
+    if (!auth) {
+      // If auth is not ready, wait.
+      return;
+    }
+
+    getRedirectResult(auth)
+      .then((result) => {
+        // If result is null, it means the user just landed on the page
+        // without coming from a redirect. If a user is found, they are
+        // already logged in from a previous session.
+        if (result || user) {
+          router.push("/dashboard");
+        } else {
+          // No redirect result, and no user from a previous session.
+          // It's safe to allow a sign-in attempt.
+          setIsProcessingSignIn(false);
+        }
+      })
+      .catch((error) => {
+        console.error("Error getting redirect result:", error);
+        setIsProcessingSignIn(false);
+      });
+  }, [auth, router, user]);
+
+  // This effect handles redirecting an already authenticated user
+  // who lands on the login page directly.
+  useEffect(() => {
+    // We wait until the redirect processing is done and we are sure the user is logged in.
+    if (!isProcessingSignIn && !isUserLoading && user) {
       router.push("/dashboard");
     }
-  }, [user, isUserLoading, router]);
-
+  }, [user, isUserLoading, isProcessingSignIn, router]);
+  
   /**
-   * Initiates the Google sign-in process using a popup.
-   * This is called directly from the button's onClick event.
+   * Initiates the Google sign-in process using a redirect.
    */
   const handleSignIn = async () => {
-    if (!auth || isSigningIn) return;
+    if (!auth) return;
 
-    setIsSigningIn(true);
+    setIsProcessingSignIn(true);
     const provider = new GoogleAuthProvider();
-    
-    try {
-      // The `onAuthStateChanged` listener in useUser() will detect the new user,
-      // and the useEffect above will handle the redirect.
-      await signInWithPopup(auth, provider);
-    } catch (error: any) {
-       if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
-        console.error("Error during sign-in:", error.message);
-      }
-      // In any case (error or closed popup), we reset the signing-in state.
-      setIsSigningIn(false);
-    }
+    await signInWithRedirect(auth, provider);
   };
 
-  // While checking for user state or if a sign-in is in progress, show a loading state.
-  if (isUserLoading || isSigningIn || user) {
+  // While checking for redirect result or user state, show a loading state.
+  if (isProcessingSignIn || isUserLoading) {
     return (
         <div className="flex min-h-screen items-center justify-center bg-background">
           <Card className="w-full max-w-sm">
@@ -90,7 +105,7 @@ export default function LoginPage() {
                 </div>
               <CardTitle className="text-2xl font-bold">PartTrack</CardTitle>
               <CardDescription>
-                Loading...
+                Processing sign-in...
               </CardDescription>
             </CardHeader>
           </Card>
@@ -112,7 +127,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={handleSignIn} className="w-full" disabled={isSigningIn}>
+          <Button onClick={handleSignIn} className="w-full">
              <GoogleIcon className="mr-2 h-4 w-4" />
             Sign in with Google
           </Button>
