@@ -1,4 +1,5 @@
 
+require('dotenv').config({ path: require('path').resolve(process.cwd(), '.env.local') });
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -30,7 +31,7 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https',
+        protocol: 'https' as const,
         hostname: 'lh3.googleusercontent.com',
         port: '',
         pathname: '/**',
