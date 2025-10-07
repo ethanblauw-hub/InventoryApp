@@ -48,10 +48,9 @@ export default function LoginPage() {
   const router = useRouter();
   const [isSigningIn, setIsSigningIn] = useState(false);
 
-  // This effect handles redirection based on authentication state.
-  // It runs when the user's auth state is resolved or changes.
+  // This effect handles redirection.
+  // If the user object becomes available (and we're not in the middle of signing in), redirect to the dashboard.
   useEffect(() => {
-    // If authentication check is complete and a user is logged in, redirect.
     if (!isUserLoading && user) {
       router.push("/dashboard");
     }
@@ -59,24 +58,23 @@ export default function LoginPage() {
 
   /**
    * Initiates the Google sign-in process using a popup.
-   * After a successful sign-in, the `useUser` hook will receive the updated
-   * user object, triggering the `useEffect` above to redirect.
+   * This is called directly from the button's onClick event.
    */
-  const signInWithGoogle = async () => {
+  const handleSignIn = async () => {
     if (!auth || isSigningIn) return;
 
     setIsSigningIn(true);
     const provider = new GoogleAuthProvider();
     
     try {
+      // The `onAuthStateChanged` listener in useUser() will detect the new user,
+      // and the useEffect above will handle the redirect.
       await signInWithPopup(auth, provider);
-      // The onAuthStateChanged listener in useUser() will detect the new user,
-      // and the useEffect will handle the redirect.
     } catch (error: any) {
-      if (error.code !== 'auth/popup-closed-by-user') {
+       if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
         console.error("Error during sign-in:", error.message);
       }
-      // In any case (success, error, or closed popup), we reset the signing-in state.
+      // In any case (error or closed popup), we reset the signing-in state.
       setIsSigningIn(false);
     }
   };
@@ -114,7 +112,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={signInWithGoogle} className="w-full" disabled={isSigningIn}>
+          <Button onClick={handleSignIn} className="w-full" disabled={isSigningIn}>
              <GoogleIcon className="mr-2 h-4 w-4" />
             Sign in with Google
           </Button>
