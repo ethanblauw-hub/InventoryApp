@@ -72,6 +72,7 @@ type ContainerDetailsPageProps = {
  */
 export default function ContainerDetailsPage({ params }: ContainerDetailsPageProps) {
   // In a real app, you'd use params.id to fetch container data
+  const { id } = params;
   const container = containerDetails;
 
   // Find the corresponding BOM based on the job name
@@ -81,7 +82,7 @@ export default function ContainerDetailsPage({ params }: ContainerDetailsPagePro
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Container #${params.id}`}
+        title={`Container #${id}`}
         description={container.jobName || container.departmentName}
       >
         <div className="flex flex-wrap gap-2">
