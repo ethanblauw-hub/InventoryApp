@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package } from "lucide-react";
-import { GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -31,52 +31,33 @@ export default function LoginPage() {
   const { user, isUserLoading } = useUser();
   const auth = useFirebaseAuth();
   const router = useRouter();
-  const [isProcessing, setIsProcessing] = useState(true);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
-    // Wait until both the user loading state is settled and the auth instance is available.
-    if (isUserLoading || !auth) {
-      return; 
-    }
-
-    // If the user is already authenticated, redirect them.
-    if (user) {
+    if (!isUserLoading && user) {
       router.push("/dashboard");
-      return;
     }
-    
-    // Process the redirect result from Google Sign-In.
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) {
-          // A user was successfully signed in via redirect.
-          // The onAuthStateChanged listener will handle the redirect to dashboard.
-          // We can just stop processing here.
-          return; 
-        }
-        // If there's no result, it means the user is not signed in
-        // and did not just return from a redirect.
-        // It's now safe to show the login button.
-        setIsProcessing(false);
-      })
-      .catch((error) => {
-        console.error("Error processing redirect result:", error);
-        setIsProcessing(false);
-      });
-  }, [user, isUserLoading, auth, router]);
+  }, [user, isUserLoading, router]);
 
   const handleSignIn = async () => {
     if (!auth) {
       console.error("Firebase auth not available.");
       return;
     }
-    setIsProcessing(true);
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ hd: "eganco.com" });
-    await signInWithRedirect(auth, provider);
+    setIsSigningIn(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ hd: "eganco.com" });
+      await signInWithPopup(auth, provider);
+      // The useEffect will handle the redirect on user state change.
+    } catch (error) {
+      console.error("Error signing in with Google popup:", error);
+      setIsSigningIn(false); // Reset on error
+    }
   };
   
-  if (isProcessing) {
+  // While loading user state or signing in, show a loading message.
+  if (isUserLoading || isSigningIn || user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Card className="w-full max-w-sm">
@@ -85,7 +66,7 @@ export default function LoginPage() {
               <Package className="size-8 shrink-0 text-accent" />
             </div>
             <CardTitle className="text-2xl font-bold">PartTrack</CardTitle>
-            <CardDescription>Processing sign-in...</CardDescription>
+            <CardDescription>Loading...</CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -103,7 +84,7 @@ export default function LoginPage() {
           <CardDescription>Sign in to access the inventory management system.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={handleSignIn} className="w-full">
+          <Button onClick={handleSignIn} className="w-full" disabled={isSigningIn}>
             <GoogleIcon className="mr-2 h-4 w-4" />
             Sign in with Google
           </Button>
