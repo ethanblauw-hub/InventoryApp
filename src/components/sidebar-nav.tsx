@@ -18,7 +18,7 @@ import Link from 'next/link';
 const navItems = [
   { href: '/dashboard', label: 'Inventory', icon: LayoutDashboard },
   { href: '/boms', label: 'BOMs', icon: FileText },
-  { href: '/locations', label: 'Locations', icon: Warehouse },
+  { href: '/locations', label: 'Shelf Location List', icon: Warehouse },
   { href: '/receive', label: 'Receive/Store', icon: PackagePlus },
   { href: '/categories', label: 'Categories', icon: Tags },
 ];

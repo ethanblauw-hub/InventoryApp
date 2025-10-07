@@ -1,17 +1,12 @@
+
 import { PageHeader } from '@/components/page-header';
-import { locations, items } from '@/lib/data';
+import { boms, locations } from '@/lib/data';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 import {
   Table,
   TableBody,
@@ -27,77 +22,63 @@ import { Badge } from '@/components/ui/badge';
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
 
 export default function LocationsPage() {
-  const locationsWithItems = locations.map(location => ({
-    ...location,
-    containedItems: items.filter(item => item.locationId === location.id)
-  }));
+  const allBomItems = boms.flatMap(bom => 
+    bom.items.map(item => ({
+      ...item,
+      bomId: bom.id,
+      jobNumber: bom.jobNumber,
+      jobName: bom.jobName,
+      projectManager: bom.projectManager,
+      primaryFieldLeader: bom.primaryFieldLeader,
+    }))
+  );
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Shelf Locations"
-        description="A list of all physical storage locations and their contents."
+        description="A detailed inventory list by location."
       />
       
       <Card>
         <CardHeader>
-          <CardTitle>Locations</CardTitle>
+          <CardTitle>Item Locations</CardTitle>
         </CardHeader>
         <CardContent>
-          <Accordion type="single" collapsible className="w-full">
-            {locationsWithItems.map(location => (
-              <AccordionItem value={location.id} key={location.id}>
-                <AccordionTrigger className="text-lg font-medium hover:no-underline">
-                  <div className="flex items-center gap-4">
-                    <span>{location.name}</span>
-                    <Badge variant="secondary">{location.containedItems.length} item types</Badge>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  {location.containedItems.length > 0 ? (
-                    <div className="relative w-full overflow-auto border-t">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-[60px] sm:w-[80px]"></TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>SKU</TableHead>
-                            <TableHead className="text-right">Quantity</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {location.containedItems.map(item => {
-                            const placeholder = getPlaceholderImage(item.imageId);
-                            return (
-                              <TableRow key={item.id}>
-                                <TableCell>
-                                  {placeholder && (
-                                    <Image
-                                      src={placeholder.imageUrl}
-                                      alt={item.name}
-                                      width={40}
-                                      height={40}
-                                      className="rounded-md object-cover"
-                                      data-ai-hint={placeholder.imageHint}
-                                    />
-                                  )}
-                                </TableCell>
-                                <TableCell className="font-medium">{item.name}</TableCell>
-                                <TableCell className="text-muted-foreground">{item.sku}</TableCell>
-                                <TableCell className="text-right font-mono">{item.quantity.toLocaleString()}</TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  ) : (
-                    <p className="p-4 text-center text-muted-foreground">This location is empty.</p>
-                  )}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+          <div className="relative w-full overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Shelf Location</TableHead>
+                  <TableHead>Job Number</TableHead>
+                  <TableHead>Job Name</TableHead>
+                  <TableHead>PM Name</TableHead>
+                  <TableHead>Primary Field Leader</TableHead>
+                  <TableHead>Item Description/Part Number</TableHead>
+                  <TableHead className="text-right">On-Hand Qty</TableHead>
+                  <TableHead>Last Updated</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allBomItems.map(item => (
+                  item.shelfLocations.map(location => (
+                    <TableRow key={`${item.id}-${location}`}>
+                      <TableCell>
+                        <Badge variant="secondary">{location}</Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">{item.jobNumber}</TableCell>
+                      <TableCell>{item.jobName}</TableCell>
+                      <TableCell className="text-muted-foreground">{item.projectManager}</TableCell>
+                      <TableCell className="text-muted-foreground">{item.primaryFieldLeader}</TableCell>
+                      <TableCell>{item.description}</TableCell>
+                      <TableCell className="text-right font-mono">{item.onHandQuantity.toLocaleString()}</TableCell>
+                      <TableCell className="text-muted-foreground">{item.lastUpdated}</TableCell>
+                    </TableRow>
+                  ))
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>
