@@ -137,6 +137,9 @@ export default function LoginPage() {
           <p className="mt-4 text-center text-xs text-muted-foreground">
             Please use your company account.
           </p>
+          <p className="mt-4 text-center text-sm">
+            {user ? `Signed in as: ${user.email}` : 'User is not signed in.'}
+          </p>
         </CardContent>
       </Card>
     </div>
