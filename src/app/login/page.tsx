@@ -4,7 +4,7 @@
 import { useUser, useAuth as useFirebaseAuth } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package } from "lucide-react";
 import { GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "firebase/auth";
@@ -46,6 +46,7 @@ export default function LoginPage() {
   const { user, isUserLoading } = useUser();
   const auth = useFirebaseAuth();
   const router = useRouter();
+  const [isProcessingRedirect, setIsProcessingRedirect] = useState(true);
 
   /**
    * Initiates the Google sign-in process using a redirect.
@@ -62,25 +63,33 @@ export default function LoginPage() {
 
   // Effect to handle the redirect result and redirect already authenticated users.
   useEffect(() => {
-    // If a user is already authenticated, redirect to the dashboard.
-    if (!isUserLoading && user) {
-      router.push("/dashboard");
-      return;
+    // This flag ensures we only process the redirect result once.
+    if (isProcessingRedirect) {
+      getRedirectResult(auth)
+        .then((result) => {
+          if (result?.user) {
+            // User signed in via redirect.
+            router.push("/dashboard");
+          } else {
+            // No redirect result, so proceed with checking existing session.
+            setIsProcessingRedirect(false);
+          }
+        })
+        .catch((error) => {
+          console.error("Error getting redirect result: ", error);
+          setIsProcessingRedirect(false);
+        });
     }
+  }, [auth, router, isProcessingRedirect]);
 
-    // Check for the redirect result after authentication.
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) {
-          // User is signed in. Redirect to the dashboard.
-          router.push("/dashboard");
-        }
-      })
-      .catch((error) => {
-        // Handle Errors here.
-        console.error("Error getting redirect result: ", error);
-      });
-  }, [user, isUserLoading, auth, router]);
+  useEffect(() => {
+    // This effect runs after the redirect check is complete.
+    // If we're not loading and not processing a redirect, check if user is already logged in.
+    if (!isUserLoading && !isProcessingRedirect && user) {
+      router.push("/dashboard");
+    }
+  }, [user, isUserLoading, isProcessingRedirect, router]);
+
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
@@ -95,7 +104,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={signInWithGoogle} className="w-full" disabled={isUserLoading}>
+          <Button onClick={signInWithGoogle} className="w-full" disabled={isUserLoading || isProcessingRedirect}>
              <GoogleIcon className="mr-2 h-4 w-4" />
             Sign in with Google
           </Button>
