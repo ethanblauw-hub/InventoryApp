@@ -26,27 +26,50 @@ import { Separator } from '@/components/ui/separator';
 import { boms } from '@/lib/data';
 import Link from 'next/link';
 
-// Mock data for a single container - this would be fetched based on the [id] param
-const containerDetails = {
-  id: 'cont-123',
-  jobNumber: 'J1234',
-  jobName: 'Job 1234 - Phase 1',
-  departmentName: null,
-  receiptDate: '2023-11-20',
-  workCategory: 'Lighting',
-  containerType: 'Pallet',
-  shelfLocation: 'Aisle A, Shelf 1',
-  imageUrl: 'https://picsum.photos/seed/cont-123/600/400',
-  hasBOM: true,
-  items: [
-    { id: 'item-1', description: 'STL-BM-24', quantity: 10 },
-    { id: 'item-2', description: 'GUS-PLT-LG', quantity: 25 },
-  ],
-  changeLog: [
-    { date: '2023-11-20', event: 'Container received and stored at Aisle A, Shelf 1 by Alice.' },
-    { date: '2023-11-21', event: 'Item GUS-PLT-LG (10 units) added by Bob.' },
-  ],
-};
+// Mock data for a list of containers
+const allContainers = [
+    {
+      id: 'cont-123',
+      jobNumber: 'J1234',
+      jobName: 'Job 1234 - Phase 1',
+      departmentName: null,
+      receiptDate: '2023-11-20',
+      workCategory: 'Lighting',
+      containerType: 'Pallet',
+      shelfLocation: 'Aisle A, Shelf 1',
+      imageUrl: 'https://picsum.photos/seed/cont-123/600/400',
+      hasBOM: true,
+      items: [
+        { id: 'item-1', description: 'STL-BM-24', quantity: 10 },
+        { id: 'item-2', description: 'GUS-PLT-LG', quantity: 25 },
+      ],
+      changeLog: [
+        { date: '2023-11-20', event: 'Container received and stored at Aisle A, Shelf 1 by Alice.' },
+        { date: '2023-11-21', event: 'Item GUS-PLT-LG (10 units) added by Bob.' },
+      ],
+    },
+    {
+        id: 'cont-456',
+        jobNumber: 'J5678',
+        jobName: 'Job 5678 - Initial',
+        departmentName: null,
+        receiptDate: '2023-11-18',
+        workCategory: 'Gear',
+        containerType: 'Cart',
+        shelfLocation: 'Receiving Dock',
+        imageUrl: 'https://picsum.photos/seed/cont-456/600/400',
+        hasBOM: true,
+        items: [
+            { id: 'item-3', description: 'Safety Harness', quantity: 5 },
+            { id: 'item-4', description: 'Hard Hat', quantity: 5 },
+            { id: 'item-5', description: 'Welding Gloves', quantity: 10 },
+        ],
+        changeLog: [
+            { date: '2023-11-18', event: 'Container received at Receiving Dock by Charlie.' },
+        ],
+    },
+];
+
 
 /**
  * Props for the ContainerDetailsPage component.
@@ -73,7 +96,7 @@ type ContainerDetailsPageProps = {
 export default function ContainerDetailsPage({ params }: ContainerDetailsPageProps) {
   // In a real app, you'd use params.id to fetch container data
   const { id } = params;
-  const container = containerDetails;
+  const container = allContainers.find(c => c.id === id) || allContainers[0];
 
   // Find the corresponding BOM based on the job name
   const relatedBom = boms.find(bom => bom.jobName === container.jobName);
@@ -82,7 +105,7 @@ export default function ContainerDetailsPage({ params }: ContainerDetailsPagePro
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Container #${id}`}
+        title={`Container #${container.id}`}
         description={container.jobName || container.departmentName}
       >
         <div className="flex flex-wrap gap-2">
