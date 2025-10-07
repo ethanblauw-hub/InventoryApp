@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { PageHeader } from '@/components/page-header';
 import { boms } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ArrowUpDown } from 'lucide-react';
+import { ArrowUpDown, PlusCircle } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
@@ -113,7 +114,14 @@ export default function LocationsPage() {
       <PageHeader
         title="Shelf Locations"
         description="A detailed inventory list by location."
-      />
+      >
+        <Button asChild>
+          <Link href="/locations/new">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add/Import Shelves
+          </Link>
+        </Button>
+      </PageHeader>
       
       <Card>
         <CardHeader>
