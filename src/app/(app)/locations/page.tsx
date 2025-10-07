@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/page-header';
-import { boms } from '@/lib/data';
+import { boms, locations } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,13 @@ import { Button } from '@/components/ui/button';
 import { ArrowUpDown, PlusCircle } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 type SortableColumn = 
   | 'location' 
@@ -49,6 +56,10 @@ export default function LocationsPage() {
       primaryFieldLeader: bom.primaryFieldLeader,
     }))
   );
+  
+  const allShelfLocations = locations.map(l => l.name);
+  const occupiedShelfLocations = new Set(allBomItems.flatMap(item => item.shelfLocations));
+  const occupancyPercentage = (occupiedShelfLocations.size / allShelfLocations.length) * 100;
 
   const locationItems = allBomItems.flatMap(item =>
     item.shelfLocations.map(location => ({
@@ -125,6 +136,31 @@ export default function LocationsPage() {
           </Button>
         )}
       </PageHeader>
+
+      {currentUser.isAdmin && (
+         <Card>
+           <CardHeader>
+             <CardTitle>Shelf Occupancy</CardTitle>
+           </CardHeader>
+           <CardContent>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="space-y-2">
+                    <Progress value={occupancyPercentage} />
+                    <p className="text-sm text-muted-foreground">
+                      {occupiedShelfLocations.size} of {allShelfLocations.length} shelf locations are occupied.
+                    </p>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{occupancyPercentage.toFixed(1)}% Occupied</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+           </CardContent>
+         </Card>
+      )}
       
       <Card>
         <CardHeader>
