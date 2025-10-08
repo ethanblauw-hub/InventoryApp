@@ -1,4 +1,6 @@
 
+'use client';
+
 import { PageHeader } from '@/components/page-header';
 import { boms, categories } from '@/lib/data';
 import {
@@ -24,6 +26,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { notFound } from 'next/navigation';
 import { UpdateBOMDialog } from '@/components/update-bom-dialog';
+import { useRouter } from 'next/navigation';
 
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
 
@@ -47,8 +50,13 @@ type BomDetailPageProps = {
  * @returns {JSX.Element} The rendered BOM detail page.
  */
 export default function BomDetailPage({ params }: BomDetailPageProps) {
+  const router = useRouter();
   const bom = boms.find((b) => b.id === `bom-${params.id}`);
   
+  const handleRowClick = (ShelfLocation: string) => {
+    router.push(`/receive/${ShelfLocation}`);
+  }
+
   if (!bom) {
     notFound();
   }
@@ -125,7 +133,7 @@ export default function BomDetailPage({ params }: BomDetailPageProps) {
                       <TableCell className="text-right font-mono">{item.designBomQuantity.toLocaleString()}</TableCell>
                       <TableCell className="text-right font-mono">{item.onHandQuantity.toLocaleString()}</TableCell>
                       <TableCell className="text-right font-mono">{item.shippedQuantity.toLocaleString()}</TableCell>
-                       <TableCell className="text-muted-foreground">{item.shelfLocations.join(', ')}</TableCell>
+                       <TableCell className="text-muted-foreground" onClick=''>{item.shelfLocations.join(', ')}</TableCell>
                       <TableCell className="hidden text-muted-foreground md:table-cell">{item.lastUpdated}</TableCell>
                     </TableRow>
                   );
