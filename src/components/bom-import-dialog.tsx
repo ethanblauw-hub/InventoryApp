@@ -29,7 +29,7 @@ type CsvRow = {
   'Part Number': string;
   'Order BOM Quantity': string;
   'Job Number': string;
-  'Job Name': 'string';
+  'Job Name': string;
   'Project Manager': string;
   'Field Leader': string;
   'Work Category ID': string;
@@ -91,11 +91,11 @@ export function BomImportDialog() {
             onHandQuantity: 0, // This would be looked up from inventory later
             shippedQuantity: 0,
             shelfLocations: [], // This would be looked up from inventory later
-            lastUpdated: new Date().toISOString().split('T')[0], // Set current date
+            lastUpdated: new Date().toISOString().split('T')[0], // Set current date, serverTimestamp is better
             imageId: '', // Default or lookup
           }));
 
-          const newBomData: Partial<Bom> = {
+          const newBomData: Partial<Bom> & { uploadDate: any } = {
             id: newBomDocRef.id,
             jobNumber: jobId,
             jobName: firstRow['Job Name'],
@@ -103,6 +103,7 @@ export function BomImportDialog() {
             primaryFieldLeader: firstRow['Field Leader'],
             workCategoryId: firstRow['Work Category ID'],
             items: bomItems,
+            uploadDate: serverTimestamp(),
           };
           
           await setDoc(newBomDocRef, newBomData);
