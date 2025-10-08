@@ -5,6 +5,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarSeparator,
 } from '@/components/ui/sidebar';
 import {
   LayoutDashboard,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { AddCategoryDialog } from './add-category-dialog';
 
 const navItems = [
   { href: '/dashboard', label: 'Inventory', icon: LayoutDashboard },
@@ -45,6 +47,12 @@ export function SidebarNav() {
           </SidebarMenuButton>
         </SidebarMenuItem>
       ))}
+      <SidebarSeparator />
+       <SidebarMenuItem>
+        <div className="px-2 w-full">
+          <AddCategoryDialog />
+        </div>
+      </SidebarMenuItem>
     </SidebarMenu>
   );
 }

@@ -12,11 +12,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Pencil, Trash2, UserCog } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AddCategoryDialog } from '@/components/add-category-dialog';
 import { useFirestore } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useMemo } from 'react';
+import { useMemoFirebase } from '@/firebase/provider';
 
 /**
  * A page component for managing work categories.
@@ -27,7 +27,7 @@ import { useMemo } from 'react';
  */
 export default function CategoriesPage() {
   const firestore = useFirestore();
-  const categoriesCollection = useMemo(() => collection(firestore, 'workCategories'), [firestore]);
+  const categoriesCollection = useMemoFirebase(() => collection(firestore, 'workCategories'), [firestore]);
   const { data: categories, isLoading, error } = useCollection(categoriesCollection);
 
   return (
@@ -36,7 +36,6 @@ export default function CategoriesPage() {
         title="Work Categories"
         description="Customize work categories for organizing BOMs."
       >
-        <AddCategoryDialog />
       </PageHeader>
       
       <Alert>
