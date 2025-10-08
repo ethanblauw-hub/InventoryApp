@@ -337,7 +337,7 @@ type ItemArrayProps = {
 
 async function generateQRCode(data: string): Promise<string> {
   try {
-    const qrCode = await QRcode.toDataURL(data);
+    const qrCode = await QRcode.toDataURL('https://eganco.com');
     return qrCode;
   } catch (err) {
     console.error('Error generating QR code:', err);
