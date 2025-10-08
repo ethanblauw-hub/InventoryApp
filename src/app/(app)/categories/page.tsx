@@ -12,23 +12,22 @@ import {
 import { Button } from '@/components/ui/button';
 import { Pencil, Trash2, UserCog } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useFirestore } from '@/firebase';
-import { collection } from 'firebase/firestore';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { useMemo } from 'react';
-import { useMemoFirebase } from '@/firebase/provider';
+import { categories as mockCategories } from '@/lib/data';
 
 /**
  * A page component for managing work categories.
- * It displays a list of existing categories from Firestore and provides
+ * It displays a list of existing categories and provides
  * administrative actions like adding, editing, and deleting categories.
+ *
+ * NOTE: This component currently uses mock data due to Firestore permissions.
  *
  * @returns {JSX.Element} The rendered categories management page.
  */
 export default function CategoriesPage() {
-  const firestore = useFirestore();
-  const categoriesCollection = useMemoFirebase(() => collection(firestore, 'workCategories'), [firestore]);
-  const { data: categories, isLoading, error } = useCollection(categoriesCollection);
+  // Using mock data until Firestore security rules are configured.
+  const categories = mockCategories;
+  const isLoading = false;
+  const error = null;
 
   return (
     <div className="space-y-6">
@@ -48,7 +47,7 @@ export default function CategoriesPage() {
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {isLoading && <p>Loading categories...</p>}
-        {error && <p className="text-destructive">Error loading categories: {error.message}</p>}
+        {error && <p className="text-destructive">Error loading categories: {(error as Error).message}</p>}
         {categories && categories.map((category) => (
           <Card key={category.id}>
             <CardHeader>
