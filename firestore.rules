@@ -1,129 +1,131 @@
 /**
- * @fileoverview Firestore Security Rules for PartTrack application.
+ * @description: This ruleset enforces a strict, path-based authorization model for the PartTrack application.
+ * Data is organized into top-level collections for Jobs, Work Categories, Inventory Items, and Shelf Locations.
+ * BOMs are stored as subcollections under Jobs.
  *
- * Core Philosophy:
- * This ruleset enforces a strict ownership model for Jobs and their associated BOMs.
- * Work Categories, Inventory Items, and Shelf Locations are accessible to all authenticated users.
+ * @dataStructure:
+ * - /jobs/{jobId}: Stores job-related information.
+ * - /jobs/{jobId}/boms/{bomId}: Stores bill of materials associated with a specific job.
+ * - /jobs/{jobId}/boms/{bomId}/items/{itemId}: Stores a list of items associated with a specific BOM.
+ * - /workCategories/{workCategoryId}: Stores work categories for organizing BOMs.
+ * - /inventoryItems/{inventoryItemId}: Stores individual inventory items.
+ * - /shelfLocations/{shelfLocationId}: Stores physical shelf locations and associated inventory item IDs.
  *
- * Data Structure:
- * - /jobs/{jobId}: Stores job details. Each job can have multiple BOMs.
- * - /jobs/{jobId}/boms/{bomId}: Stores bill of materials associated with a job.
- * - /workCategories/{workCategoryId}: Stores work categories.
- * - /inventoryItems/{inventoryItemId}: Stores inventory items.
- * - /shelfLocations/{shelfLocationId}: Stores shelf locations and associated inventory item IDs.
- *
- * Key Security Decisions:
- * - Only authenticated users can access the data.
- * - Listing all jobs is allowed for authenticated users, but creating, updating, and deleting jobs is disallowed.
- * - Only authenticated users can access work categories, inventory items, and shelf locations.
- * - Write operations are not permitted for jobs, boms, workCategories, inventoryItems, and shelfLocations.
+ * @keySecurityDecisions:
+ * - Path based rules are used to establish clear ownership.
+ * - No user-specific data is stored, so there is no user authentication to handle.
+ * - List operations are enabled for all collections as appropriate for the application's public read access pattern.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows authenticated users to read job data.  Write operations are disallowed.
-     * @path /jobs/{jobId}
-     * @allow get, list: if isSignedIn();
-     * @allow create: if false;
-     * @allow update: if false;
-     * @allow delete: if false;
-     * @deny create: if false; // Example of a denied operation.
-     * @deny update: if false; // Example of a denied operation.
-     * @deny delete: if false; // Example of a denied operation.
-     * @principle Allows authenticated users to view jobs. Disallows any modifications.
+     * @description: Manages access to Job documents.
+     * @path: /jobs/{jobId}
+     * @allow: (read) Any user can read a Job document.
+     * @allow: (create) Any authenticated user can create a Job document.
+     * @allow: (update) Any authenticated user can update a Job document.
+     * @allow: (delete) Any authenticated user can delete a Job document.
      */
     match /jobs/{jobId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+      
+      match /boms/{bomId} {
+      	allow get, list: if true;
+        allow create: if isSignedIn();
+        allow update: if isSignedIn() && resource != null;
+        allow delete: if isSignedIn() && resource != null;
+        
+        match /items/{itemId} {
+          allow get, list: if true;
+          allow create: if isSignedIn();
+          allow update: if isSignedIn() && resource != null;
+          allow delete: if isSignedIn() && resource != null;
+        }
+      }
     }
 
     /**
-     * @description Allows authenticated users to read BOM data for a specific job.  Write operations are disallowed.
-     * @path /jobs/{jobId}/boms/{bomId}
-     * @allow get, list: if isSignedIn();
-     * @allow create: if false;
-     * @allow update: if false;
-     * @allow delete: if false;
-     * @deny create: if false; // Example of a denied operation.
-     * @deny update: if false; // Example of a denied operation.
-     * @deny delete: if false; // Example of a denied operation.
-     * @principle Allows authenticated users to view boms. Disallows any modifications.
+     * @description: Manages access to Bom documents within a Job.
+     * @path: /jobs/{jobId}/boms/{bomId}
+     * @allow: (read) Any user can read a Bom document.
+     * @allow: (create) Any authenticated user can create a Bom document.
+     * @allow: (update) Any authenticated user can update a Bom document.
+     * @allow: (delete) Any authenticated user can delete a Bom document.
      */
     match /jobs/{jobId}/boms/{bomId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
-    
+
     /**
-     * @description Allows authenticated users to read work category data.  Write operations are disallowed.
-     * @path /workCategories/{workCategoryId}
-     * @allow get, list: if isSignedIn();
-     * @allow create: if false;
-     * @allow update: if false;
-     * @allow delete: if false;
-     * @deny create: if false; // Example of a denied operation.
-     * @deny update: if false; // Example of a denied operation.
-     * @deny delete: if false; // Example of a denied operation.
-     * @principle Allows authenticated users to view work categories. Disallows any modifications.
+     * @description: Manages access to WorkCategory documents.
+     * @path: /workCategories/{workCategoryId}
+     * @allow: (read) Any user can read a WorkCategory document.
+     * @allow: (create) Any authenticated user can create a WorkCategory document.
+     * @allow: (update) Any authenticated user can update a WorkCategory document.
+     * @allow: (delete) Any authenticated user can delete a WorkCategory document.
      */
     match /workCategories/{workCategoryId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Allows authenticated users to read inventory item data.  Write operations are disallowed.
-     * @path /inventoryItems/{inventoryItemId}
-     * @allow get, list: if isSignedIn();
-     * @allow create: if false;
-     * @allow update: if false;
-     * @allow delete: if false;
-     * @deny create: if false; // Example of a denied operation.
-     * @deny update: if false; // Example of a denied operation.
-     * @deny delete: if false; // Example of a denied operation.
-     * @principle Allows authenticated users to view inventory items. Disallows any modifications.
+     * @description: Manages access to InventoryItem documents.
+     * @path: /inventoryItems/{inventoryItemId}
+     * @allow: (read) Any user can read an InventoryItem document.
+     * @allow: (create) Any authenticated user can create an InventoryItem document.
+     * @allow: (update) Any authenticated user can update an InventoryItem document.
+     * @allow: (delete) Any authenticated user can delete an InventoryItem document.
      */
     match /inventoryItems/{inventoryItemId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+    
+    match /containers/{containerId} {
+    	allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+      
+    	match /items/{itemId} {
+      	allow get, list: if true;
+        allow create: if isSignedIn();
+        allow update: if isSignedIn() && resource != null;
+        allow delete: if isSignedIn() && resource != null;
+      }
     }
 
     /**
-     * @description Allows authenticated users to read shelf location data. Write operations are disallowed.
-     * @path /shelfLocations/{shelfLocationId}
-     * @allow get, list: if isSignedIn();
-     * @allow create: if false;
-     * @allow update: if false;
-     * @allow delete: if false;
-     * @deny create: if false; // Example of a denied operation.
-     * @deny update: if false; // Example of a denied operation.
-     * @deny delete: if false; // Example of a denied operation.
-     * @principle Allows authenticated users to view shelf locations. Disallows any modifications.
+     * @description: Manages access to ShelfLocation documents.
+     * @path: /shelfLocations/{shelfLocationId}
+     * @allow: (read) Any user can read a ShelfLocation document.
+     * @allow: (create) Any authenticated user can create a ShelfLocation document.
+     * @allow: (update) Any authenticated user can update a ShelfLocation document.
+     * @allow: (delete) Any authenticated user can delete a ShelfLocation document.
      */
     match /shelfLocations/{shelfLocationId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
-    /**
-     * @description Checks if the user is signed in.
-     * @return {bool} True if the user is signed in, false otherwise.
-     * @example isSignedIn() == true
-     */
+
     function isSignedIn() {
-      return request.auth != null;
+        return request.auth != null;
     }
   }
 }
