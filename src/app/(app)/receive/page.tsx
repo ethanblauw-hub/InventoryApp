@@ -12,7 +12,7 @@ import {
   FormMessage,
   useFormContext,
 } from '@/components/ui/form';
-//import QRcode from 'qrcode';
+import QRcode from 'qrcode';
 import { useForm, useFieldArray, Controller, Control } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -335,16 +335,16 @@ type ItemArrayProps = {
   control: Control<ReceiveFormValues>;
 };
 
-// async function generateQRCode(data: string): Promise<string> {
-//   try {
-//     const qrCode = await QRcode.toDataURL(data);
-//     return qrCode;
-//   } catch (err) {
-//     console.error('Error generating QR code:', err);
-//     return '';
-//   }
+async function generateQRCode(data: string): Promise<string> {
+  try {
+    const qrCode = await QRcode.toDataURL(data);
+    return qrCode;
+  } catch (err) {
+    console.error('Error generating QR code:', err);
+    return '';
+  }
   
-// }
+}
 
 /**
  * A component that manages a dynamic array of item input fields for a single container.
