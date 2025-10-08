@@ -1,4 +1,5 @@
 "use client"
+import { useState } from "react";
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -13,10 +14,60 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Upload } from "lucide-react"
+import { useToast } from "@/hooks/use-toast";
+import Papa from "papaparse";
+
+type BomType = "order" | "design";
 
 export function BomImportDialog() {
+  const [open, setOpen] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [bomType, setBomType] = useState<BomType>("order");
+  const { toast } = useToast();
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      setFile(event.target.files[0]);
+    }
+  };
+
+  const handleImport = () => {
+    if (!file) {
+      toast({
+        variant: "destructive",
+        title: "No file selected",
+        description: "Please select a file to import.",
+      });
+      return;
+    }
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        console.log("Parsed BOM Data:", results.data);
+        console.log("BOM Type:", bomType);
+        toast({
+          title: "Import Successful",
+          description: `${results.data.length} rows were parsed from ${file.name}.`,
+        });
+        // Reset state and close dialog
+        setFile(null);
+        setOpen(false);
+      },
+      error: (error) => {
+        console.error("Error parsing CSV:", error);
+        toast({
+          variant: "destructive",
+          title: "Import Failed",
+          description: error.message,
+        });
+      },
+    });
+  };
+
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
           <Upload className="mr-2" />
@@ -33,11 +84,11 @@ export function BomImportDialog() {
         <div className="grid gap-4 py-4">
           <div className="grid w-full max-w-sm items-center gap-1.5">
             <Label htmlFor="bom-file">File</Label>
-            <Input id="bom-file" type="file" />
+            <Input id="bom-file" type="file" accept=".csv" onChange={handleFileChange} />
           </div>
           <div className="space-y-2">
             <Label>BOM Type</Label>
-            <RadioGroup defaultValue="order" className="flex gap-4">
+            <RadioGroup defaultValue={bomType} onValueChange={(value: BomType) => setBomType(value)} className="flex gap-4">
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="order" id="r1" />
                 <Label htmlFor="r1">Order BOM (Estimate)</Label>
@@ -50,7 +101,7 @@ export function BomImportDialog() {
           </div>
         </div>
         <DialogFooter>
-          <Button type="submit">Import</Button>
+          <Button onClick={handleImport}>Import</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
