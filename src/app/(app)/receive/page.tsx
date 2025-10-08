@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import {
   Form,
@@ -29,6 +30,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import Image from 'next/image';
 
 /**
  * Zod schema for validating a single item within a container.
@@ -72,6 +75,9 @@ type ReceiveFormValues = z.infer<typeof formSchema>;
  */
 export default function ReceiveStorePage() {
   const { toast } = useToast();
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
+
   const form = useForm<ReceiveFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -95,6 +101,25 @@ export default function ReceiveStorePage() {
       description: `Logged ${values.containers.length} container(s).`,
     });
     form.reset();
+  }
+
+  /**
+   * Generates a QR code and displays it in a dialog.
+   * @param {string} data - The data to encode in the QR code.
+   */
+  async function showQrCode(data: string) {
+    try {
+      const url = await QRcode.toDataURL('https://eganco.com');
+      setQrCodeUrl(url);
+      setIsQrDialogOpen(true);
+    } catch (err) {
+      console.error('Error generating QR code:', err);
+      toast({
+        variant: 'destructive',
+        title: 'QR Code Error',
+        description: 'Failed to generate QR code.',
+      });
+    }
   }
 
   return (
@@ -307,7 +332,7 @@ export default function ReceiveStorePage() {
                                 <Camera className="mr-2 h-4 w-4" />
                                 Upload Photo
                             </Button>
-                            <Button type="button" variant="secondary">
+                            <Button type="button" onClick={() => showQrCode("temp-data")} variant="secondary">
                                 <Printer className="mr-2 h-4 w-4" />
                                 Print Label
                             </Button>
@@ -321,6 +346,22 @@ export default function ReceiveStorePage() {
           <Button type="submit" disabled={containerFields.length === 0}>Submit</Button>
         </form>
       </Form>
+      
+      <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Container QR Code</DialogTitle>
+            <DialogDescription>
+              Scan this code with your mobile device to view container details.
+            </DialogDescription>
+          </DialogHeader>
+          {qrCodeUrl && (
+            <div className="flex items-center justify-center p-4">
+              <Image src={qrCodeUrl} alt="Generated QR Code" width={256} height={256} />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -334,17 +375,6 @@ type ItemArrayProps = {
   containerIndex: number;
   control: Control<ReceiveFormValues>;
 };
-
-async function generateQRCode(data: string): Promise<string> {
-  try {
-    const qrCode = await QRcode.toDataURL('https://eganco.com');
-    return qrCode;
-  } catch (err) {
-    console.error('Error generating QR code:', err);
-    return '';
-  }
-  
-}
 
 /**
  * A component that manages a dynamic array of item input fields for a single container.
@@ -427,3 +457,5 @@ function ItemArray({ containerIndex, control }: ItemArrayProps) {
     </div>
   )
 }
+
+    
