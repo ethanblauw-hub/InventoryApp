@@ -13,16 +13,23 @@ import { Button } from '@/components/ui/button';
 import { Pencil, Trash2, UserCog } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AddCategoryDialog } from '@/components/add-category-dialog';
-import { categories } from '@/lib/data';
+import { useFirestore } from '@/firebase';
+import { collection } from 'firebase/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { useMemo } from 'react';
 
 /**
  * A page component for managing work categories.
- * It displays a list of existing categories and provides
+ * It displays a list of existing categories from Firestore and provides
  * administrative actions like adding, editing, and deleting categories.
  *
  * @returns {JSX.Element} The rendered categories management page.
  */
 export default function CategoriesPage() {
+  const firestore = useFirestore();
+  const categoriesCollection = useMemo(() => collection(firestore, 'workCategories'), [firestore]);
+  const { data: categories, isLoading, error } = useCollection(categoriesCollection);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -41,7 +48,9 @@ export default function CategoriesPage() {
       </Alert>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {categories.map((category) => (
+        {isLoading && <p>Loading categories...</p>}
+        {error && <p className="text-destructive">Error loading categories: {error.message}</p>}
+        {categories && categories.map((category) => (
           <Card key={category.id}>
             <CardHeader>
               <CardTitle>{category.name}</CardTitle>
