@@ -24,9 +24,8 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { notFound } from 'next/navigation';
+import { notFound, useRouter } from 'next/navigation';
 import { UpdateBOMDialog } from '@/components/update-bom-dialog';
-import { useRouter } from 'next/navigation';
 
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
 
@@ -53,8 +52,9 @@ export default function BomDetailPage({ params }: BomDetailPageProps) {
   const router = useRouter();
   const bom = boms.find((b) => b.id === `bom-${params.id}`);
   
-  const handleRowClick = (ShelfLocation: string) => {
-    router.push(`/receive/${ShelfLocation}`);
+  const handleRowClick = (shelfLocation: string) => {
+    // Navigate to the locations page with the shelf location as a search query
+    router.push(`/locations?search=${encodeURIComponent(shelfLocation)}`);
   }
 
   if (!bom) {
@@ -114,6 +114,8 @@ export default function BomDetailPage({ params }: BomDetailPageProps) {
               <TableBody>
                 {bomItems.map((item) => {
                   const placeholder = item.imageId ? getPlaceholderImage(item.imageId) : undefined;
+                  // Handle cases where an item might have multiple locations. We'll make each one clickable.
+                  const locations = item.shelfLocations.join(', ');
                   return (
                     <TableRow key={item.id}>
                       <TableCell>
@@ -133,7 +135,12 @@ export default function BomDetailPage({ params }: BomDetailPageProps) {
                       <TableCell className="text-right font-mono">{item.designBomQuantity.toLocaleString()}</TableCell>
                       <TableCell className="text-right font-mono">{item.onHandQuantity.toLocaleString()}</TableCell>
                       <TableCell className="text-right font-mono">{item.shippedQuantity.toLocaleString()}</TableCell>
-                       <TableCell className="text-muted-foreground" onClick=''>{item.shelfLocations.join(', ')}</TableCell>
+                       <TableCell 
+                        className="text-muted-foreground cursor-pointer hover:underline" 
+                        onClick={() => handleRowClick(locations)}
+                       >
+                          {locations}
+                       </TableCell>
                       <TableCell className="hidden text-muted-foreground md:table-cell">{item.lastUpdated}</TableCell>
                     </TableRow>
                   );

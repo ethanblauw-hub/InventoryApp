@@ -1,8 +1,9 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
 import { boms, locations } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,10 +54,18 @@ const currentUser = {
  * @returns {JSX.Element} The rendered locations page.
  */
 export default function LocationsPage() {
-  const [search, setSearch] = useState('');
+  const searchParams = useSearchParams();
+  const initialSearch = searchParams.get('search') || '';
+  const [search, setSearch] = useState(initialSearch);
   const [showMyJobsOnly, setShowMyJobsOnly] = useState(false);
   const [sortColumn, setSortColumn] = useState<SortableColumn>('location');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  useEffect(() => {
+    // If the search param changes, update the state
+    setSearch(searchParams.get('search') || '');
+  }, [searchParams]);
+
 
   const allBomItems = boms.flatMap(bom =>
     bom.items.map(item => ({
