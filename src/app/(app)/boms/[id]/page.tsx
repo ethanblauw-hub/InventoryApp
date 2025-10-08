@@ -1,6 +1,7 @@
 
 'use client';
 
+import { use } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { boms, categories } from '@/lib/data';
 import {
@@ -31,13 +32,11 @@ const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.i
 
 /**
  * Props for the BomDetailPage component.
- * @property {object} params - The route parameters.
- * @property {string} params.id - The ID of the Bill of Materials to display.
+ * @property {object} params - The route parameters, passed as a Promise.
+ * @property {Promise<string>} params.id - The ID of the Bill of Materials to display.
  */
 type BomDetailPageProps = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 /**
@@ -50,8 +49,8 @@ type BomDetailPageProps = {
  */
 export default function BomDetailPage(props: BomDetailPageProps) {
   const router = useRouter();
-  const { params } = props;
-  const bom = boms.find((b) => b.id === `bom-${params.id}`);
+  const { id } = use(props.params);
+  const bom = boms.find((b) => b.id === `bom-${id}`);
   
   const handleRowClick = (shelfLocation: string) => {
     // Navigate to the locations page with the shelf location as a search query
