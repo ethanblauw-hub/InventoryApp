@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection } from 'firebase/firestore';
+import { AddCategoryDialog } from '@/components/add-category-dialog';
 
 // Represents a customizable work category for organizing BOMs by type of work (e.g., 'Lighting', 'Gear').
 export type Category = {
@@ -49,6 +50,7 @@ export default function CategoriesPage() {
         title="Work Categories"
         description="Customize work categories for organizing BOMs."
       >
+        <AddCategoryDialog />
       </PageHeader>
       
       <Alert>
