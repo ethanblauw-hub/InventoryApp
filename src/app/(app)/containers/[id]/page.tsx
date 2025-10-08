@@ -1,6 +1,7 @@
 
 'use client';
 
+import { use } from 'react';
 import { PageHeader } from '@/components/page-header';
 import {
   Card,
@@ -8,7 +9,6 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  CardFooter,
 } from '@/components/ui/card';
 import {
   Table,
@@ -25,6 +25,8 @@ import { Edit, Trash2, FileText, PlusCircle, Ship, History } from 'lucide-react'
 import { Separator } from '@/components/ui/separator';
 import { boms } from '@/lib/data';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
+
 
 // Mock data for a list of containers
 const allContainers = [
@@ -77,9 +79,7 @@ const allContainers = [
  * @property {string} params.id - The ID of the container to display.
  */
 type ContainerDetailsPageProps = {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 };
 
 /**
@@ -93,11 +93,15 @@ type ContainerDetailsPageProps = {
  * @param {ContainerDetailsPageProps} props - The props for the component.
  * @returns {JSX.Element} The rendered container details page.
  */
-export default function ContainerDetailsPage({ params }: ContainerDetailsPageProps) {
+export default function ContainerDetailsPage(props: ContainerDetailsPageProps) {
   // In a real app, you'd use params.id to fetch container data
-  const { id } = params;
-  const container = allContainers.find(c => c.id === id) || allContainers[0];
+  const { id } = use(props.params);
+  const container = allContainers.find(c => c.id === id);
 
+  if (!container) {
+    notFound();
+  }
+  
   // Find the corresponding BOM based on the job name
   const relatedBom = boms.find(bom => bom.jobName === container.jobName);
   const bomId = relatedBom ? relatedBom.id.replace('bom-', '') : null;
