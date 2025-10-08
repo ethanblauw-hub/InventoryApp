@@ -17,6 +17,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Upload } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
+import * as XLSX from 'xlsx';
 
 type BomType = "order" | "design";
 
@@ -32,33 +33,72 @@ export function BomImportDialog() {
     }
   };
 
+  const processData = (data: any[]) => {
+    console.log("Parsed Data:", data);
+    toast({
+      title: "Import Successful",
+      description: `Parsed ${data.length} records. Check the console for details.`,
+    });
+    setFile(null);
+    setOpen(false);
+  };
+
   const handleImport = () => {
     if (!file) {
       toast({ variant: "destructive", title: "No file selected" });
       return;
     }
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        console.log("Parsed CSV Data:", results.data);
+    const reader = new FileReader();
+
+    if (file.name.endsWith('.csv')) {
+      reader.onload = (e) => {
+        const text = e.target?.result;
+        if (typeof text === 'string') {
+          Papa.parse(text, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+              processData(results.data);
+            },
+            error: (error: any) => {
+              console.error("Error parsing CSV:", error);
+              toast({
+                variant: "destructive",
+                title: "Parsing Failed",
+                description: error.message,
+              });
+            },
+          });
+        }
+      };
+      reader.readAsText(file);
+    } else if (file.name.endsWith('.xlsx')) {
+        reader.onload = (e) => {
+            const data = e.target?.result;
+            try {
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet);
+                processData(json);
+            } catch (error: any) {
+                console.error("Error parsing XLSX:", error);
+                toast({
+                    variant: "destructive",
+                    title: "Parsing Failed",
+                    description: error.message,
+                });
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    } else {
         toast({
-          title: "Import Successful",
-          description: `Parsed ${results.data.length} records. Check the console for details.`,
+            variant: "destructive",
+            title: "Unsupported File Type",
+            description: "Please upload a .csv or .xlsx file.",
         });
-        setFile(null);
-        setOpen(false);
-      },
-      error: (error: any) => {
-        console.error("Error parsing CSV:", error);
-        toast({
-          variant: "destructive",
-          title: "Parsing Failed",
-          description: error.message,
-        });
-      },
-    });
+    }
   };
 
   return (
@@ -79,7 +119,7 @@ export function BomImportDialog() {
         <div className="grid gap-4 py-4">
           <div className="grid w-full max-w-sm items-center gap-1.5">
             <Label htmlFor="bom-file">File</Label>
-            <Input id="bom-file" type="file" accept=".csv" onChange={handleFileChange} />
+            <Input id="bom-file" type="file" accept=".csv,.xlsx" onChange={handleFileChange} />
           </div>
           <div className="space-y-2">
             <Label>BOM Type</Label>
