@@ -9,7 +9,7 @@
 
 'use client';
 
-import { FirebaseProvider, useUser, useAuth, useFirestore, useFirebaseApp } from './provider';
+import { FirebaseProvider, useUser, useAuth, useFirestore, useFirebaseApp, useMemoFirebase } from './provider';
 import { firebaseConfig } from './config';
 import { FirebaseClientProvider } from './client-provider';
 
@@ -21,5 +21,6 @@ export {
   useUser,
   useAuth,
   useFirestore,
-  useFirebaseApp
+  useFirebaseApp,
+  useMemoFirebase
 };
