@@ -23,14 +23,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { boms, items, locations, categories } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Trash2, Camera, Printer, Package, Box, ShoppingCart, MoreHorizontal } from 'lucide-react';
+import { PlusCircle, Trash2, Camera, Printer, Package, Box, ShoppingCart, MoreHorizontal, Download } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import Image from 'next/image';
 
 /**
@@ -107,7 +107,7 @@ export default function ReceiveStorePage() {
    * Generates a QR code and displays it in a dialog.
    * @param {string} data - The data to encode in the QR code.
    */
-  async function showQrCode(data: string) {
+  async function generateQRCode(data: string) {
     try {
       const url = await QRcode.toDataURL('https://eganco.com');
       setQrCodeUrl(url);
@@ -119,6 +119,27 @@ export default function ReceiveStorePage() {
         title: 'QR Code Error',
         description: 'Failed to generate QR code.',
       });
+    }
+  }
+
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head><title>Print QR Code</title></head>
+          <body style="text-align: center; margin-top: 50px;">
+            <img src="${qrCodeUrl}" alt="QR Code" />
+            <script>
+              window.onload = () => {
+                window.print();
+                window.onafterprint = () => window.close();
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
     }
   }
 
@@ -332,7 +353,7 @@ export default function ReceiveStorePage() {
                                 <Camera className="mr-2 h-4 w-4" />
                                 Upload Photo
                             </Button>
-                            <Button type="button" onClick={() => showQrCode("temp-data")} variant="secondary">
+                            <Button type="button" onClick={() => generateQRCode("temp-data")} variant="secondary">
                                 <Printer className="mr-2 h-4 w-4" />
                                 Print Label
                             </Button>
@@ -352,16 +373,26 @@ export default function ReceiveStorePage() {
           <DialogHeader>
             <DialogTitle>Container QR Code</DialogTitle>
             <DialogDescription>
-              Click the QR code to download it.
+              Scan, download, or print the QR code for the container label.
             </DialogDescription>
           </DialogHeader>
           {qrCodeUrl && (
             <div className="flex items-center justify-center p-4">
-               <a href={qrCodeUrl} download="container-qr.png" className="cursor-pointer">
-                <Image src={qrCodeUrl} alt="Generated QR Code" width={256} height={256} />
-              </a>
+              <Image src={qrCodeUrl} alt="Generated QR Code" width={256} height={256} />
             </div>
           )}
+          <DialogFooter>
+             <Button variant="outline" size="icon" asChild>
+                <a href={qrCodeUrl} download="container-qr.png">
+                    <Download />
+                    <span className="sr-only">Download QR Code</span>
+                </a>
+            </Button>
+            <Button variant="outline" size="icon" onClick={handlePrint}>
+                <Printer />
+                <span className="sr-only">Print QR Code</span>
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
@@ -459,5 +490,3 @@ function ItemArray({ containerIndex, control }: ItemArrayProps) {
     </div>
   )
 }
-
-    
