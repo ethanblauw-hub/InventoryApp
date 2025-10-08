@@ -352,12 +352,14 @@ export default function ReceiveStorePage() {
           <DialogHeader>
             <DialogTitle>Container QR Code</DialogTitle>
             <DialogDescription>
-              Scan this code with your mobile device to view container details.
+              Click the QR code to download it.
             </DialogDescription>
           </DialogHeader>
           {qrCodeUrl && (
             <div className="flex items-center justify-center p-4">
-              <Image src={qrCodeUrl} alt="Generated QR Code" width={256} height={256} />
+               <a href={qrCodeUrl} download="container-qr.png" className="cursor-pointer">
+                <Image src={qrCodeUrl} alt="Generated QR Code" width={256} height={256} />
+              </a>
             </div>
           )}
         </DialogContent>
