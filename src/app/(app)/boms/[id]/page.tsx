@@ -48,8 +48,9 @@ type BomDetailPageProps = {
  * @param {BomDetailPageProps} props - The props for the component.
  * @returns {JSX.Element} The rendered BOM detail page.
  */
-export default function BomDetailPage({ params }: BomDetailPageProps) {
+export default function BomDetailPage(props: BomDetailPageProps) {
   const router = useRouter();
+  const { params } = props;
   const bom = boms.find((b) => b.id === `bom-${params.id}`);
   
   const handleRowClick = (shelfLocation: string) => {
