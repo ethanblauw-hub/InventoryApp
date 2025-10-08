@@ -12,7 +12,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { Pencil, Trash2, UserCog } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { categories as mockCategories } from '@/lib/data';
+import { useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collection } from 'firebase/firestore';
+
+// Represents a customizable work category for organizing BOMs by type of work (e.g., 'Lighting', 'Gear').
+export type Category = {
+  id: string;
+  name: string;
+  description: string;
+};
+
 
 /**
  * A page component for managing work categories.
@@ -24,10 +34,14 @@ import { categories as mockCategories } from '@/lib/data';
  * @returns {JSX.Element} The rendered categories management page.
  */
 export default function CategoriesPage() {
-  // Using mock data until Firestore security rules are configured.
-  const categories = mockCategories;
-  const isLoading = false;
-  const error = null;
+  const firestore = useFirestore();
+  
+  const categoriesQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'workCategories') : null),
+    [firestore]
+  );
+  
+  const { data: categories, isLoading, error } = useCollection<Category>(categoriesQuery);
 
   return (
     <div className="space-y-6">

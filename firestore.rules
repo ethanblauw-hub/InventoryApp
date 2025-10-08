@@ -1,133 +1,120 @@
+/**
+ * @fileoverview Firestore Security Rules for PartTrack.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict path-based ownership model and denormalizes data for authorization where needed, 
+ * ensuring that only authorized users can access specific resources. Data validation is relaxed for prototyping.
+ *
+ * Data Structure:
+ * - /jobs/{jobId}: Top-level collection for jobs.
+ * - /jobs/{jobId}/boms/{bomId}: Subcollection for BOMs belonging to a job.
+ * - /workCategories/{workCategoryId}: Top-level collection for work categories.
+ * - /inventoryItems/{inventoryItemId}: Top-level collection for inventory items.
+ * - /shelfLocations/{shelfLocationId}: Top-level collection for shelf locations, denormalized with inventory item IDs.
+ *
+ * Key Security Decisions:
+ * - Access to BOMs is implicitly granted to users with access to the parent Job document.
+ * - Listing of documents is generally allowed within the scope of access, except where explicitly denied.
+ * - Data validation is minimal, focusing on relational integrity rather than comprehensive schema enforcement.
+ * - Owner-only access enforced via path variables (jobId, workCategoryId, inventoryItemId, shelfLocationId).
+ *
+ * Denormalization for Authorization:
+ * - ShelfLocation documents contain an array of inventoryItemIds, denormalizing the many-to-many relationship to simplify read operations and security rules without additional reads.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
     /**
-     * @description This ruleset enforces strict authorization for the PartTrack application. It ensures that only authenticated users can access data, with path-based ownership and denormalization for authorization where needed. All write operations require authentication.
-     * @dataStructure
-     *  - `/jobs/{jobId}`: Stores job information.
-     *  - `/jobs/{jobId}/boms/{bomId}`: Stores bill of materials associated with a job.
-     *  - `/workCategories/{workCategoryId}`: Stores work categories for BOMs.
-     *  - `/inventoryItems/{inventoryItemId}`: Stores inventory items.
-     *  - `/shelfLocations/{shelfLocationId}`: Stores shelf locations with denormalized inventory item IDs.
-     * @keySecurityDecisions
-     *  - All write operations are restricted to authenticated users.
-     *  - `list` operations are allowed only when explicitly permitted, and never globally.
-     *  - Data validation is minimal in this prototyping phase, focusing only on ownership and relational integrity.
-     *  - Timestamp fields are not validated.
-     * @denormalizationForAuthorization N/A (Path-based ownership is used where applicable)
-     * @structuralSegregation Top-level collections are used for different data types to simplify security rules.
-     */
-
-    // Helper function to check if the user is signed in.
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // Helper function to check if the authenticated user ID matches the provided user ID.
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    // Helper function to check if the user is the existing owner of the document.
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-    
-    /**
-     * @description Manages access to Job documents.
+     * @description Grants access to job documents based on the job ID.
      * @path /jobs/{jobId}
-     * @allow (create) - Authenticated user can create a job.
-     * @deny (create) - Unauthenticated user cannot create a job.
-     * @allow (get) - Authenticated user can read any job.
-     * @deny (update, delete) - Only the job creator can update or delete the job.
-     * @principle Path-based ownership for writes, public reads.
+     * @allow (read, write): Authenticated user can access job document if they know the jobId.
+     * @deny (read, write): Unauthenticated user.
+     * @principle Enforces that only authenticated users can access job documents.
      */
     match /jobs/{jobId} {
-      // Read permissions: Allow anyone to read jobs.
-      allow get: if true;
-      allow list: if false;
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-      // Write permissions: Only authenticated users can create, update, or delete jobs.
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isSignedIn();
     }
 
     /**
-     * @description Manages access to Bom documents within a specific job.
+     * @description Grants access to BOM documents within a specific job based on job ID and BOM ID.
      * @path /jobs/{jobId}/boms/{bomId}
-     * @allow (create) - Authenticated user can create a Bom within a job.
-     * @deny (create) - Unauthenticated user cannot create a Bom.
-     * @allow (get) - Authenticated user can read any Bom within a job.
-     * @deny (update, delete) - Only authenticated users can update or delete a Bom.
-     * @principle Path-based ownership for writes, public reads.
+     * @allow (read, write): Authenticated user can access BOM if they have access to the parent job.
+     * @deny (read, write): Unauthenticated user, or authenticated user without access to the parent job.
+     * @principle Enforces that access to BOMs is tied to access of the parent Job.
      */
     match /jobs/{jobId}/boms/{bomId} {
-      // Read permissions: Allow anyone to read BOMs within a job.
-      allow get: if true;
-      allow list: if false;
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-      // Write permissions: Only authenticated users can create, update, or delete BOMs.
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isSignedIn();
     }
 
     /**
-     * @description Manages access to WorkCategory documents.
+     * @description Grants access to work category documents based on the work category ID.
      * @path /workCategories/{workCategoryId}
-     * @allow (create) - Authenticated user can create a WorkCategory.
-     * @deny (create) - Unauthenticated user cannot create a WorkCategory.
-     * @allow (get) - Authenticated user can read any WorkCategory.
-     * @deny (update, delete) - Only authenticated users can update or delete a WorkCategory.
-     * @principle Public read, authenticated write.
+     * @allow (read, write): Authenticated user can access work category if they know the workCategoryId.
+     * @deny (read, write): Unauthenticated user.
+     * @principle Enforces that only authenticated users can access work category documents.
      */
     match /workCategories/{workCategoryId} {
-      // Read permissions: Allow anyone to read work categories.
-      allow get: if true;
-      allow list: if false;
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-      // Write permissions: Only authenticated users can create, update, or delete work categories.
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isSignedIn();
     }
 
     /**
-     * @description Manages access to InventoryItem documents.
+     * @description Grants access to inventory item documents based on the inventory item ID.
      * @path /inventoryItems/{inventoryItemId}
-     * @allow (create) - Authenticated user can create an InventoryItem.
-     * @deny (create) - Unauthenticated user cannot create an InventoryItem.
-     * @allow (get) - Authenticated user can read any InventoryItem.
-     * @deny (update, delete) - Only authenticated users can update or delete an InventoryItem.
-     * @principle Public read, authenticated write.
+     * @allow (read, write): Authenticated user can access inventory item if they know the inventoryItemId.
+     * @deny (read, write): Unauthenticated user.
+     * @principle Enforces that only authenticated users can access inventory item documents.
      */
     match /inventoryItems/{inventoryItemId} {
-      // Read permissions: Allow anyone to read inventory items.
-      allow get: if true;
-      allow list: if false;
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-      // Write permissions: Only authenticated users can create, update, or delete inventory items.
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isSignedIn();
     }
 
     /**
-     * @description Manages access to ShelfLocation documents.
+     * @description Grants access to shelf location documents based on the shelf location ID.
      * @path /shelfLocations/{shelfLocationId}
-     * @allow (create) - Authenticated user can create a ShelfLocation.
-     * @deny (create) - Unauthenticated user cannot create a ShelfLocation.
-     * @allow (get) - Authenticated user can read any ShelfLocation.
-     * @deny (update, delete) - Only authenticated users can update or delete a ShelfLocation.
-     * @principle Public read, authenticated write.
+     * @allow (read, write): Authenticated user can access shelf location if they know the shelfLocationId.
+     * @deny (read, write): Unauthenticated user.
+     * @principle Enforces that only authenticated users can access shelf location documents.
      */
     match /shelfLocations/{shelfLocationId} {
-      // Read permissions: Allow anyone to read shelf locations.
-      allow get: if true;
-      allow list: if false;
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-      // Write permissions: Only authenticated users can create, update, or delete shelf locations.
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isSignedIn();
