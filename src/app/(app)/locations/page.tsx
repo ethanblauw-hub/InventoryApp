@@ -15,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useFirestore, useMemoFirebase, useUser as useAuthUser } from '@/firebase';
+import { useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, collectionGroup, query } from 'firebase/firestore';
 import { Bom, Location } from '@/lib/data';
@@ -53,7 +53,7 @@ export default function LocationsPage() {
   const [showMyJobsOnly, setShowMyJobsOnly] = useState(false);
   const [sortColumn, setSortColumn] = useState<SortableColumn>('location');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const { user: currentUser } = useAuthUser();
+  const { user: currentUser } = useUser();
   const firestore = useFirestore();
 
   useEffect(() => {

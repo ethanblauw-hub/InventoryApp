@@ -33,7 +33,6 @@ import { Bom } from '@/lib/data';
 
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
 
-
 /**
  * The main dashboard page of the application, which serves as the primary inventory overview.
  * It displays a comprehensive list of all items from all Bills of Materials (BOMs).

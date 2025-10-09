@@ -1,7 +1,6 @@
 
 'use client';
 
-import { use } from 'react';
 import { PageHeader } from '@/components/page-header';
 import {
   Card,
@@ -37,11 +36,12 @@ const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.i
 
 /**
  * Props for the BomDetailPage component.
- * @property {object} params - The route parameters, passed as a Promise.
- * @property {Promise<string>} params.id - The ID of the Bill of Materials to display.
+ * @property {object} params - The route parameters.
+ * @property {string} params.jobId - The ID of the Job.
+ * @property {string} params.bomId - The ID of the Bill of Materials to display.
  */
 type BomDetailPageProps = {
-  params: { jobId: string, bomId: string };
+  params: { jobId: string; bomId: string };
 };
 
 /**
@@ -62,7 +62,7 @@ export default function BomDetailPage({ params }: BomDetailPageProps) {
     [firestore, jobId, bomId]
   );
   
-  const { data: bom, isLoading: isBomLoading, error: bomError } = useDoc<Bom>(bomRef);
+  const { data: bom, isLoading: isBomLoading } = useDoc<Bom>(bomRef);
 
   const categoriesQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'workCategories') : null),
