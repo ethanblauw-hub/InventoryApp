@@ -145,6 +145,10 @@ service cloud.firestore {
         allow delete: if isSignedIn() && resource != null;
       }
     }
+
+    match /{document=**}{
+      allow get, list: if isSignedIn();
+    }
     
     function verifyBOM(){
       return request.resource.data.jobNumber != null && request.resource.data.jobName != null;
