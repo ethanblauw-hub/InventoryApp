@@ -84,6 +84,7 @@ export default function BomDetailPage({ params }: BomDetailPageProps) {
   if (!bom) {
     // If loading is finished and we still have no bom, it's a 404
     notFound();
+    return null; // notFound() throws an error so this is for type safety
   }
   
   const workCategory = categories?.find(c => c.id === bom.workCategoryId);
