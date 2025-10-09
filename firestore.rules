@@ -6,6 +6,7 @@
  * @dataStructure
  * - /jobs/{jobId}: Stores all or a specific Job.
  *   - /boms/{bomId}: Stores BOM associated with a specific, or all Jobs.
+ *     - /items/{itemId}: Stores individual items within a BOM.
  * - /workCategories/{workCategoryId}: Stores all or a specific Work Category.
  * - /inventoryItems/{inventoryItemId}: Stores individual Inventory Items.
  * - /shelfLocations/{shelfLocationId}: Stores physical shelf locations and associated Inventory item IDs.
