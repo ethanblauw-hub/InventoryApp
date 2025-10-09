@@ -32,7 +32,7 @@ service cloud.firestore {
      * @allow: (delete) Any authenticated user can delete a Job document.
      */
     match /jobs/{jobId} {
-      allow get, list: if true;
+      allow get, list: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn() && resource != null;
       allow delete: if isSignedIn() && resource != null;
@@ -46,7 +46,7 @@ service cloud.firestore {
       * @allow: (delete) Any authenticated user can delete a Job document.
       */
       match /boms/{bomId} {
-      	allow get, list: if true;
+      	allow get, list: if isSignedIn();
         allow create: if isSignedIn() && verifyBOM();
         allow update: if isSignedIn() && resource != null;
         allow delete: if isSignedIn() && resource != null;
@@ -60,7 +60,7 @@ service cloud.firestore {
         * @allow: (delete) Any authenticated user can delete a Job document.
         */  
         match /items/{itemId} {
-          allow get, list: if true;
+          allow get, list: if isSignedIn();
           allow create: if isSignedIn() && resource.data.partNumber != null;
           allow update: if isSignedIn() && resource != null;
           allow delete: if isSignedIn() && resource != null;
@@ -77,7 +77,7 @@ service cloud.firestore {
      * @allow: (delete) Any authenticated user can delete a WorkCategory document.
      */
     match /workCategories/{workCategoryId} {
-      allow get, list: if true;
+      allow get, list: if isSignedIn();
       allow create: if isSignedIn() && resource.data.name != null;
       allow update: if isSignedIn() && resource != null;
       allow delete: if isSignedIn() && resource != null;
@@ -92,7 +92,7 @@ service cloud.firestore {
      * @allow: (delete) Any authenticated user can delete an InventoryItem document.
      */
     match /inventoryItems/{inventoryItemId} {
-      allow get, list: if true;
+      allow get, list: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn() && resource != null;
       allow delete: if isSignedIn() && resource != null;
@@ -107,7 +107,7 @@ service cloud.firestore {
      * @allow: (delete) Any authenticated user can delete a Container document.
      */    
     match /containers/{containerId} {
-    	allow get, list: if true;
+    	allow get, list: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn() && resource != null;
       allow delete: if isSignedIn() && resource != null;
@@ -121,7 +121,7 @@ service cloud.firestore {
        * @allow: (delete) Any authenticated user can delete a Container Item document.
        */  
     	match /items/{itemId} {
-      	allow get, list: if true;
+      	allow get, list: if isSignedIn();
         allow create: if isSignedIn() && verifyContainerItem();
         allow update: if isSignedIn() && resource != null;
         allow delete: if isSignedIn() && resource != null;
@@ -137,7 +137,7 @@ service cloud.firestore {
      * @allow: (delete) Any authenticated user can delete a ShelfLocation document.
      */
     match /shelfLocations/{shelfLocationId} {
-      allow get, list: if true;
+      allow get, list: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn() && resource != null;
       allow delete: if isSignedIn() && resource != null;

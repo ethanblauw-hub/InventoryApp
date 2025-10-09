@@ -10,21 +10,47 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Upload } from "lucide-react"
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
 import * as XLSX from 'xlsx';
+import { useFirestore } from '@/firebase';
+import { collection, serverTimestamp, doc, setDoc } from "firebase/firestore";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 
 type BomType = "order" | "design";
+type ParsedBom = {
+  jobInfo: {
+    jobNumber: string;
+    jobName: string;
+    projectManager: string;
+    primaryFieldLeader: string;
+    workCategoryId: string;
+  };
+  items: any[];
+};
 
 export function BomImportDialog() {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [bomType, setBomType] = useState<BomType>("order");
+  const [parsedBom, setParsedBom] = useState<ParsedBom | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const firestore = useFirestore();
   const { toast } = useToast();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,15 +59,83 @@ export function BomImportDialog() {
     }
   };
 
-  const processData = (data: any[]) => {
-    console.log("Parsed Data:", data);
-    toast({
-      title: "Import Successful",
-      description: `Parsed ${data.length} records. Check the console for details.`,
-    });
-    setFile(null);
-    setOpen(false);
+  const processAndShowConfirm = (parsedRows: any[]) => {
+    if (!parsedRows || parsedRows.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Parsing Error",
+        description: "The file is empty or could not be read.",
+      });
+      return;
+    }
+    
+    const firstRow = parsedRows[0];
+    const jobInfo = {
+      jobNumber: firstRow["Job Number"],
+      jobName: firstRow["Job Name"],
+      projectManager: firstRow["PM"],
+      primaryFieldLeader: firstRow["Primary Field Leader"],
+      workCategoryId: firstRow["Category"] || "cat-1", // Default category if not present
+    };
+
+    const bomItems = parsedRows.map(row => ({
+      description: row["Description/Part Number"],
+      quantity: parseInt(row["Quantity"], 10) || 0,
+    }));
+
+    setParsedBom({ jobInfo, items: bomItems });
+    setIsConfirmOpen(true);
   };
+
+  const handleFinalSubmit = async () => {
+    if (!parsedBom || !firestore) return;
+
+    const { jobInfo, items } = parsedBom;
+
+    const bomItemsForFirestore = items.map(item => ({
+      id: `item-${Math.random().toString(36).substr(2, 9)}`,
+      description: item.description,
+      orderBomQuantity: bomType === 'order' ? item.quantity : 0,
+      designBomQuantity: bomType === 'design' ? item.quantity : 0,
+      onHandQuantity: 0,
+      shippedQuantity: 0,
+      shelfLocations: [],
+      lastUpdated: serverTimestamp(),
+      imageId: '',
+    }));
+
+    const jobDocRef = doc(firestore, 'jobs', jobInfo.jobNumber);
+    const bomColRef = collection(jobDocRef, 'boms');
+    const bomDocRef = doc(bomColRef);
+
+    const newBomDocument = {
+      id: bomDocRef.id,
+      ...jobInfo,
+      items: bomItemsForFirestore,
+    };
+
+    try {
+      await setDoc(bomDocRef, newBomDocument);
+      toast({
+        title: "BOM Imported Successfully",
+        description: `BOM for job ${jobInfo.jobName} has been created.`,
+      });
+    } catch (error) {
+       console.error("Error writing document: ", error);
+       toast({
+         variant: "destructive",
+         title: "Firestore Error",
+         description: "Failed to save the BOM. Please check console for details.",
+       });
+    } finally {
+        // Reset state
+        setIsConfirmOpen(false);
+        setParsedBom(null);
+        setFile(null);
+        setOpen(false);
+    }
+  };
+
 
   const handleImport = () => {
     if (!file) {
@@ -50,95 +144,121 @@ export function BomImportDialog() {
     }
 
     const reader = new FileReader();
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
 
-    if (file.name.endsWith('.csv')) {
-      reader.onload = (e) => {
-        const text = e.target?.result;
-        if (typeof text === 'string') {
-          Papa.parse(text, {
+    reader.onload = (e) => {
+      const data = e.target?.result;
+      try {
+        if (fileExtension === 'csv' && typeof data === 'string') {
+          Papa.parse(data, {
             header: true,
             skipEmptyLines: true,
-            complete: (results) => {
-              processData(results.data);
-            },
+            complete: (results) => processAndShowConfirm(results.data),
             error: (error: any) => {
-              console.error("Error parsing CSV:", error);
-              toast({
-                variant: "destructive",
-                title: "Parsing Failed",
-                description: error.message,
-              });
+              toast({ variant: "destructive", title: "CSV Parsing Failed", description: error.message });
             },
           });
+        } else if (fileExtension === 'xlsx' && data instanceof ArrayBuffer) {
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const json = XLSX.utils.sheet_to_json(worksheet);
+            processAndShowConfirm(json);
+        } else {
+           throw new Error("Unsupported file type or data format.");
         }
-      };
-      reader.readAsText(file);
-    } else if (file.name.endsWith('.xlsx')) {
-        reader.onload = (e) => {
-            const data = e.target?.result;
-            try {
-                const workbook = XLSX.read(data, { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const json = XLSX.utils.sheet_to_json(worksheet);
-                processData(json);
-            } catch (error: any) {
-                console.error("Error parsing XLSX:", error);
-                toast({
-                    variant: "destructive",
-                    title: "Parsing Failed",
-                    description: error.message,
-                });
-            }
-        };
-        reader.readAsArrayBuffer(file);
-    } else {
+      } catch (error: any) {
+        console.error("Error parsing file:", error);
         toast({
             variant: "destructive",
-            title: "Unsupported File Type",
-            description: "Please upload a .csv or .xlsx file.",
+            title: "Parsing Failed",
+            description: error.message,
         });
+      }
+    };
+    
+    if (fileExtension === 'xlsx') {
+        reader.readAsArrayBuffer(file);
+    } else {
+        reader.readAsText(file);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Upload className="mr-2" />
-          Import BOM
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Import Bill of Materials</DialogTitle>
-          <DialogDescription>
-            Select a .csv or .xlsx file to import. Specify if it's an Order BOM or Design BOM.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid w-full max-w-sm items-center gap-1.5">
-            <Label htmlFor="bom-file">File</Label>
-            <Input id="bom-file" type="file" accept=".csv,.xlsx" onChange={handleFileChange} />
+    <>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button>
+            <Upload className="mr-2" />
+            Import BOM
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Import Bill of Materials</DialogTitle>
+            <DialogDescription>
+              Select a .csv or .xlsx file to import. Specify if it's an Order BOM or Design BOM.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid w-full max-w-sm items-center gap-1.5">
+              <Label htmlFor="bom-file">File</Label>
+              <Input id="bom-file" type="file" accept=".csv,.xlsx" onChange={handleFileChange} />
+            </div>
+            <div className="space-y-2">
+              <Label>BOM Type</Label>
+              <RadioGroup defaultValue={bomType} onValueChange={(value: BomType) => setBomType(value)} className="flex gap-4">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="order" id="r1" />
+                  <Label htmlFor="r1">Order BOM (Estimate)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="design" id="r2" />
+                  <Label htmlFor="r2">Design BOM (Actual)</Label>
+                </div>
+              </RadioGroup>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label>BOM Type</Label>
-            <RadioGroup defaultValue={bomType} onValueChange={(value: BomType) => setBomType(value)} className="flex gap-4">
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="order" id="r1" />
-                <Label htmlFor="r1">Order BOM (Estimate)</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="design" id="r2" />
-                <Label htmlFor="r2">Design BOM (Actual)</Label>
-              </div>
-            </RadioGroup>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button onClick={handleImport}>Import</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            <Button onClick={handleImport} disabled={!file}>Review &amp; Import</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {parsedBom && (
+        <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+            <AlertDialogContent className="max-w-3xl">
+                 <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm BOM Import</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Please review the details below before creating the new Bill of Materials for <strong>{parsedBom.jobInfo.jobName} ({parsedBom.jobInfo.jobNumber})</strong>.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="max-h-96 overflow-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Item Description</TableHead>
+                                <TableHead className="text-right">Quantity</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {parsedBom.items.map((item, index) => (
+                                <TableRow key={index}>
+                                    <TableCell>{item.description}</TableCell>
+                                    <TableCell className="text-right font-mono">{item.quantity.toLocaleString()}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleFinalSubmit}>Submit</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </>
   )
 }
