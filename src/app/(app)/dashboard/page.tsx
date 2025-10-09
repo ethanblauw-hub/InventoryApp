@@ -59,7 +59,7 @@ export default function DashboardPage() {
     bom.items.map(item => ({
       ...item,
       bomId: bom.id,
-      jobId: bom.id, // The document ID of the bom is the bomId
+      jobId: bom.jobNumber, // Use jobNumber for the job's ID
       jobNumber: bom.jobNumber,
       jobName: bom.jobName,
       projectManager: bom.projectManager,
@@ -179,8 +179,8 @@ export default function DashboardPage() {
                        <TableCell className="text-muted-foreground">{item.shelfLocations.join(', ')}</TableCell>
                       <TableCell className="hidden text-muted-foreground md:table-cell">{lastUpdatedDate}</TableCell>
                       <TableCell className="text-right">
-                        {item.bomId && (
-                           <Button variant="outline" size="sm" onClick={() => handleBomRedirect(item.jobNumber!, item.bomId!)}>
+                        {item.bomId && item.jobId && (
+                           <Button variant="outline" size="sm" onClick={() => handleBomRedirect(item.jobId!, item.bomId!)}>
                              View BOM
                              <ArrowRight className="ml-2 h-4 w-4" />
                            </Button>
