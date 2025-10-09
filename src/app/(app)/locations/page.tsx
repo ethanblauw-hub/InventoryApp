@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
-import { boms, locations } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -15,12 +14,11 @@ import { ArrowUpDown, PlusCircle } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useFirestore, useMemoFirebase, useUser as useAuthUser } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collection, collectionGroup, query } from 'firebase/firestore';
+import { Bom, Location } from '@/lib/data';
 
 /**
  * Defines the columns that can be used for sorting the locations table.
@@ -40,11 +38,6 @@ type SortableColumn =
  */
 type SortDirection = 'asc' | 'desc';
 
-// Mock current user - this would be replaced with actual user data from an auth system
-const currentUser = {
-  name: 'Alice Johnson',
-  isAdmin: true, // This would come from your auth system
-};
 
 /**
  * A page component that displays a detailed inventory list organized by shelf location.
@@ -60,14 +53,27 @@ export default function LocationsPage() {
   const [showMyJobsOnly, setShowMyJobsOnly] = useState(false);
   const [sortColumn, setSortColumn] = useState<SortableColumn>('location');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const { user: currentUser } = useAuthUser();
+  const firestore = useFirestore();
 
   useEffect(() => {
     // If the search param changes, update the state
     setSearch(searchParams.get('search') || '');
   }, [searchParams]);
 
+  const locationsQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'shelfLocations') : null),
+    [firestore]
+  );
+  const { data: shelfLocations, isLoading: areLocationsLoading } = useCollection<Location>(locationsQuery);
 
-  const allBomItems = boms.flatMap(bom =>
+  const bomsQuery = useMemoFirebase(
+    () => (firestore ? query(collectionGroup(firestore, 'boms')) : null),
+    [firestore]
+  );
+  const { data: boms, isLoading: areBomsLoading } = useCollection<Bom>(bomsQuery);
+
+  const allBomItems = boms?.flatMap(bom =>
     bom.items.map(item => ({
       ...item,
       bomId: bom.id,
@@ -76,11 +82,11 @@ export default function LocationsPage() {
       projectManager: bom.projectManager,
       primaryFieldLeader: bom.primaryFieldLeader,
     }))
-  );
+  ) || [];
   
-  const allShelfLocations = locations.map(l => l.name);
+  const allShelfLocations = shelfLocations?.map(l => l.name) || [];
   const occupiedShelfLocations = new Set(allBomItems.flatMap(item => item.shelfLocations));
-  const occupancyPercentage = (occupiedShelfLocations.size / allShelfLocations.length) * 100;
+  const occupancyPercentage = allShelfLocations.length > 0 ? (occupiedShelfLocations.size / allShelfLocations.length) * 100 : 0;
 
   const locationItems = allBomItems.flatMap(item =>
     item.shelfLocations.map(location => ({
@@ -104,8 +110,8 @@ export default function LocationsPage() {
   };
 
   const filteredItems = locationItems.filter(item => {
-    if (showMyJobsOnly) {
-       if (item.projectManager !== currentUser.name && item.primaryFieldLeader !== currentUser.name) {
+    if (showMyJobsOnly && currentUser?.displayName) {
+       if (item.projectManager !== currentUser.displayName && item.primaryFieldLeader !== currentUser.displayName) {
         return false;
       }
     }
@@ -120,13 +126,13 @@ export default function LocationsPage() {
       item.projectManager.toLowerCase().includes(searchTerm) ||
       item.primaryFieldLeader.toLowerCase().includes(searchTerm) ||
       item.description.toLowerCase().includes(searchTerm) ||
-      item.lastUpdated.toLowerCase().includes(searchTerm)
+      item.lastUpdated.toString().toLowerCase().includes(searchTerm)
     );
   });
 
   const sortedItems = [...filteredItems].sort((a, b) => {
-    const aValue = a[sortColumn];
-    const bValue = b[sortColumn];
+    const aValue = a[sortColumn] || '';
+    const bValue = b[sortColumn] || '';
     
     let comparison = 0;
     if (aValue > bValue) {
@@ -146,6 +152,8 @@ export default function LocationsPage() {
     return sortDirection === 'asc' ? comparison : comparison * -1;
   });
 
+  const isLoading = areBomsLoading || areLocationsLoading;
+  const isAdmin = true; // Replace with actual admin check logic
 
   return (
     <div className="space-y-6">
@@ -153,7 +161,7 @@ export default function LocationsPage() {
         title="Shelf Locations"
         description="A detailed inventory list by location."
       >
-        {currentUser.isAdmin && (
+        {isAdmin && (
           <Button asChild>
             <Link href="/locations/new">
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -163,27 +171,29 @@ export default function LocationsPage() {
         )}
       </PageHeader>
 
-      {currentUser.isAdmin && (
+      {isAdmin && (
          <Card>
            <CardHeader>
              <CardTitle>Shelf Occupancy</CardTitle>
            </CardHeader>
            <CardContent>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="space-y-2">
-                    <Progress value={occupancyPercentage} />
-                    <p className="text-sm text-muted-foreground">
-                      {occupiedShelfLocations.size} of {allShelfLocations.length} shelf locations are occupied.
-                    </p>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{occupancyPercentage.toFixed(1)}% Occupied</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            {isLoading ? <p>Calculating occupancy...</p> : (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="space-y-2">
+                      <Progress value={occupancyPercentage} />
+                      <p className="text-sm text-muted-foreground">
+                        {occupiedShelfLocations.size} of {allShelfLocations.length} shelf locations are occupied.
+                      </p>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{occupancyPercentage.toFixed(1)}% Occupied</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
            </CardContent>
          </Card>
       )}
@@ -262,8 +272,13 @@ export default function LocationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedItems.map(item => (
-                  <TableRow key={`${item.id}-${item.location}`}>
+                {isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center">Loading item locations...</TableCell>
+                  </TableRow>
+                )}
+                {!isLoading && sortedItems.map((item, index) => (
+                  <TableRow key={`${item.id}-${item.location}-${index}`}>
                     <TableCell>
                       <Badge variant="secondary">{item.location}</Badge>
                     </TableCell>
@@ -273,9 +288,14 @@ export default function LocationsPage() {
                     <TableCell className="text-muted-foreground">{item.primaryFieldLeader}</TableCell>
                     <TableCell>{item.description}</TableCell>
                     <TableCell className="text-right font-mono">{item.onHandQuantity.toLocaleString()}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.lastUpdated}</TableCell>
+                    <TableCell className="text-muted-foreground">{new Date(item.lastUpdated).toLocaleDateString()}</TableCell>
                   </TableRow>
                 ))}
+                 {!isLoading && sortedItems.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center">No items found.</TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>

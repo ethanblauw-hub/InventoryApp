@@ -21,7 +21,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { boms, items, locations, categories } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Trash2, Camera, Printer, Package, Box, ShoppingCart, MoreHorizontal, Download } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
@@ -32,6 +31,10 @@ import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import Image from 'next/image';
+import { useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collection, collectionGroup, query } from 'firebase/firestore';
+import { Bom, Category, Location } from '@/lib/data';
 
 /**
  * Zod schema for validating a single item within a container.
@@ -77,6 +80,26 @@ export default function ReceiveStorePage() {
   const { toast } = useToast();
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
+  const firestore = useFirestore();
+
+  const bomsQuery = useMemoFirebase(
+    () => (firestore ? query(collectionGroup(firestore, 'boms')) : null),
+    [firestore]
+  );
+  const { data: boms, isLoading: areBomsLoading } = useCollection<Bom>(bomsQuery);
+  
+  const categoriesQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'workCategories') : null),
+    [firestore]
+  );
+  const { data: categories, isLoading: areCategoriesLoading } = useCollection<Category>(categoriesQuery);
+
+  const locationsQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'shelfLocations') : null),
+    [firestore]
+  );
+  const { data: locations, isLoading: areLocationsLoading } = useCollection<Location>(locationsQuery);
+
 
   const form = useForm<ReceiveFormValues>({
     resolver: zodResolver(formSchema),
@@ -174,8 +197,10 @@ export default function ReceiveStorePage() {
                               !field.value && "text-muted-foreground"
                             )}
                           >
-                            {field.value
-                              ? boms.find(
+                            {areBomsLoading
+                              ? "Loading jobs..."
+                              : field.value
+                              ? boms?.find(
                                   (bom) => bom.jobNumber === field.value
                                 )?.jobName
                               : "Select job by name or number"}
@@ -187,17 +212,14 @@ export default function ReceiveStorePage() {
                         <Command>
                           <CommandInput placeholder="Search job..." />
                           <CommandEmpty>No job found.</CommandEmpty>
-                          <CommandList>
-                            {boms.map((bom) => (
+                           <CommandList>
+                            {boms?.map((bom) => (
                               <CommandItem
                                 value={`${bom.jobName} ${bom.jobNumber}`}
                                 key={bom.id}
                                 onSelect={() => {
                                   form.setValue("jobNumber", bom.jobNumber);
-                                  const associatedBom = boms.find(b => b.jobNumber === bom.jobNumber);
-                                  if (associatedBom) {
-                                    form.setValue("workCategory", associatedBom.workCategoryId);
-                                  }
+                                  form.setValue("workCategory", bom.workCategoryId);
                                 }}
                               >
                                 <Check
@@ -234,11 +256,11 @@ export default function ReceiveStorePage() {
                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a category" />
+                            <SelectValue placeholder={areCategoriesLoading ? "Loading..." : "Select a category"} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {categories.map(cat => (
+                          {categories?.map(cat => (
                             <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                           ))}
                         </SelectContent>
@@ -319,11 +341,11 @@ export default function ReceiveStorePage() {
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
                                     <SelectTrigger>
-                                    <SelectValue placeholder="Select a destination location" />
+                                    <SelectValue placeholder={areLocationsLoading ? "Loading..." : "Select a destination location"} />
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    {locations.map(location => (
+                                    {locations?.map(location => (
                                     <SelectItem key={location.id} value={location.id}>{location.name}</SelectItem>
                                     ))}
                                 </SelectContent>

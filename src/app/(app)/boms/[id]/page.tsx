@@ -3,7 +3,6 @@
 
 import { use } from 'react';
 import { PageHeader } from '@/components/page-header';
-import { boms, categories } from '@/lib/data';
 import {
   Card,
   CardContent,
@@ -27,6 +26,12 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { notFound, useRouter } from 'next/navigation';
 import { UpdateBOMDialog } from '@/components/update-bom-dialog';
+import { useDoc } from '@/firebase/firestore/use-doc';
+import { doc } from 'firebase/firestore';
+import { useFirestore, useMemoFirebase } from '@/firebase';
+import { Bom, Category } from '@/lib/data';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collection } from 'firebase/firestore';
 
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
 
@@ -36,7 +41,7 @@ const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.i
  * @property {Promise<string>} params.id - The ID of the Bill of Materials to display.
  */
 type BomDetailPageProps = {
-  params: Promise<{ id: string }>;
+  params: { jobId: string, bomId: string };
 };
 
 /**
@@ -47,22 +52,42 @@ type BomDetailPageProps = {
  * @param {BomDetailPageProps} props - The props for the component.
  * @returns {JSX.Element} The rendered BOM detail page.
  */
-export default function BomDetailPage(props: BomDetailPageProps) {
+export default function BomDetailPage({ params }: BomDetailPageProps) {
   const router = useRouter();
-  const { id } = use(props.params);
-  const bom = boms.find((b) => b.id === `bom-${id}`);
+  const { jobId, bomId } = params;
+  const firestore = useFirestore();
+
+  const bomRef = useMemoFirebase(
+    () => (firestore && jobId && bomId ? doc(firestore, 'jobs', jobId, 'boms', bomId) : null),
+    [firestore, jobId, bomId]
+  );
   
+  const { data: bom, isLoading: isBomLoading, error: bomError } = useDoc<Bom>(bomRef);
+
+  const categoriesQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'workCategories') : null),
+    [firestore]
+  );
+  const { data: categories, isLoading: areCategoriesLoading } = useCollection<Category>(categoriesQuery);
+
   const handleRowClick = (shelfLocation: string) => {
     // Navigate to the locations page with the shelf location as a search query
     router.push(`/locations?search=${encodeURIComponent(shelfLocation)}`);
   }
 
-  if (!bom) {
-    notFound();
+  if (isBomLoading || areCategoriesLoading) {
+    return <div>Loading BOM details...</div>;
   }
-
-  const workCategory = categories.find(c => c.id === bom.workCategoryId);
-  const bomItems = bom.items;
+  
+  if (!bom) {
+    if (!isBomLoading) {
+      notFound();
+    }
+    return null; // Render nothing while loading or if not found initially
+  }
+  
+  const workCategory = categories?.find(c => c.id === bom.workCategoryId);
+  const bomItems = bom.items || [];
 
   return (
     <div className="space-y-6">
@@ -116,6 +141,8 @@ export default function BomDetailPage(props: BomDetailPageProps) {
                   const placeholder = item.imageId ? getPlaceholderImage(item.imageId) : undefined;
                   // Handle cases where an item might have multiple locations. We'll make each one clickable.
                   const locations = item.shelfLocations.join(', ');
+                  const lastUpdatedDate = item.lastUpdated ? new Date(item.lastUpdated).toLocaleDateString() : 'N/A';
+                  
                   return (
                     <TableRow key={item.id}>
                       <TableCell>
@@ -131,17 +158,17 @@ export default function BomDetailPage(props: BomDetailPageProps) {
                         )}
                       </TableCell>
                       <TableCell className="font-medium">{item.description}</TableCell>
-                      <TableCell className="text-right font-mono">{item.orderBomQuantity.toLocaleString()}</TableCell>
-                      <TableCell className="text-right font-mono">{item.designBomQuantity.toLocaleString()}</TableCell>
-                      <TableCell className="text-right font-mono">{item.onHandQuantity.toLocaleString()}</TableCell>
-                      <TableCell className="text-right font-mono">{item.shippedQuantity.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono">{item.orderBomQuantity?.toLocaleString() ?? 0}</TableCell>
+                      <TableCell className="text-right font-mono">{item.designBomQuantity?.toLocaleString() ?? 0}</TableCell>
+                      <TableCell className="text-right font-mono">{item.onHandQuantity?.toLocaleString() ?? 0}</TableCell>
+                      <TableCell className="text-right font-mono">{item.shippedQuantity?.toLocaleString() ?? 0}</TableCell>
                        <TableCell 
                         className="text-muted-foreground cursor-pointer hover:underline" 
                         onClick={() => handleRowClick(locations)}
                        >
                           {locations}
                        </TableCell>
-                      <TableCell className="hidden text-muted-foreground md:table-cell">{item.lastUpdated}</TableCell>
+                      <TableCell className="hidden text-muted-foreground md:table-cell">{lastUpdatedDate}</TableCell>
                     </TableRow>
                   );
                 })}

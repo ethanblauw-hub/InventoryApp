@@ -4,7 +4,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
-import { boms } from '@/lib/data';
 import {
   Card,
   CardContent,
@@ -27,20 +26,19 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { useFirestore, useMemoFirebase, useUser as useAuthUser } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collectionGroup, query } from 'firebase/firestore';
+import { Bom } from '@/lib/data';
 
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
 
-// Mock current user - this would be replaced with actual user data from an auth system
-const currentUser = {
-  name: 'Alice Johnson',
-  isAdmin: true,
-};
 
 /**
  * The main dashboard page of the application, which serves as the primary inventory overview.
- * It displays a comprehensive list of all items, both those associated with a Bill of Materials (BOM)
- * and standalone "Shop Stock" items. It includes functionality for searching and filtering items,
- * such as viewing only items related to the current user's jobs.
+ * It displays a comprehensive list of all items from all Bills of Materials (BOMs).
+ * It includes functionality for searching and filtering items, such as viewing only items
+ * related to the current user's jobs.
  *
  * @returns {JSX.Element} The rendered dashboard page.
  */
@@ -48,61 +46,30 @@ export default function DashboardPage() {
   const [search, setSearch] = useState('');
   const [showMyJobsOnly, setShowMyJobsOnly] = useState(false);
   const router = useRouter();
+  const { user: currentUser } = useAuthUser();
+  const firestore = useFirestore();
+  
+  const bomsQuery = useMemoFirebase(
+    () => (firestore ? query(collectionGroup(firestore, 'boms')) : null),
+    [firestore]
+  );
+  const { data: boms, isLoading: areBomsLoading } = useCollection<Bom>(bomsQuery);
 
-  const allBomItems = boms.flatMap(bom => 
+  const allBomItems = boms?.flatMap(bom => 
     bom.items.map(item => ({
       ...item,
       bomId: bom.id,
+      jobId: bom.id, // The document ID of the bom is the bomId
       jobNumber: bom.jobNumber,
       jobName: bom.jobName,
       projectManager: bom.projectManager,
       primaryFieldLeader: bom.primaryFieldLeader,
     }))
-  );
+  ) || [];
 
-  const standaloneItems = [
-    {
-      id: 'item-6',
-      description: 'Welding Rods E7018',
-      orderBomQuantity: 0,
-      designBomQuantity: 0,
-      onHandQuantity: 500,
-      shippedQuantity: 0,
-      shelfLocations: ['Aisle C, Bin 1'],
-      lastUpdated: '2023-11-15',
-      imageId: '',
-      bomId: undefined,
-      jobNumber: '-',
-      jobName: 'Shop Stock',
-      projectManager: '-',
-      primaryFieldLeader: '-',
-    },
-    {
-      id: 'item-7',
-      description: 'Hard Hat (White)',
-      orderBomQuantity: 0,
-      designBomQuantity: 0,
-      onHandQuantity: 20,
-      shippedQuantity: 0,
-      shelfLocations: ['Safety Cabinet'],
-      lastUpdated: '2023-11-12',
-      imageId: '',
-      bomId: undefined,
-      jobNumber: '-',
-      jobName: 'Shop Stock',
-      projectManager: '-',
-      primaryFieldLeader: '-',
-    }
-  ]
-
-  const allItems = [...allBomItems, ...standaloneItems];
-
-
-  const filteredItems = allItems.filter(item => {
-    // Filter by my jobs
-    if (showMyJobsOnly) {
-      if (!item.bomId) return false;
-      if (item.projectManager !== currentUser.name && item.primaryFieldLeader !== currentUser.name) {
+  const filteredItems = allBomItems.filter(item => {
+    if (showMyJobsOnly && currentUser?.displayName) {
+      if (item.projectManager !== currentUser.displayName && item.primaryFieldLeader !== currentUser.displayName) {
         return false;
       }
     }
@@ -117,23 +84,24 @@ export default function DashboardPage() {
       (item.primaryFieldLeader?.toLowerCase() ?? '').includes(searchTerm) ||
       item.description.toLowerCase().includes(searchTerm) ||
       item.shelfLocations.join(', ').toLowerCase().includes(searchTerm) ||
-      item.lastUpdated.toLowerCase().includes(searchTerm)
+      (item.lastUpdated?.toString() ?? '').toLowerCase().includes(searchTerm)
     );
   });
   
   /**
    * Navigates to the detail page for a specific BOM.
+   * @param {string} jobNumber - The job number of the BOM to view.
    * @param {string} bomId - The ID of the BOM to view.
    */
-  const handleBomRedirect = (bomId: string) => {
-    router.push(`/boms/${bomId.replace('bom-', '')}`);
+  const handleBomRedirect = (jobNumber: string, bomId: string) => {
+    router.push(`/boms/${jobNumber}/${bomId}`);
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Inventory"
-        description="A complete list of all parts in the shop."
+        description="A complete list of all parts in the shop from all BOMs."
       >
         <AddItemDialog />
       </PageHeader>
@@ -177,8 +145,14 @@ export default function DashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredItems.map((item) => {
+                {areBomsLoading && (
+                  <TableRow>
+                    <TableCell colSpan={13} className="text-center">Loading inventory items...</TableCell>
+                  </TableRow>
+                )}
+                {!areBomsLoading && filteredItems.map((item) => {
                   const placeholder = item.imageId ? getPlaceholderImage(item.imageId) : undefined;
+                  const lastUpdatedDate = item.lastUpdated ? new Date(item.lastUpdated).toLocaleDateString() : 'N/A';
                   return (
                     <TableRow key={item.id}>
                        <TableCell>
@@ -203,10 +177,10 @@ export default function DashboardPage() {
                       <TableCell className="text-right font-mono">{item.onHandQuantity.toLocaleString()}</TableCell>
                       <TableCell className="text-right font-mono">{item.shippedQuantity.toLocaleString()}</TableCell>
                        <TableCell className="text-muted-foreground">{item.shelfLocations.join(', ')}</TableCell>
-                      <TableCell className="hidden text-muted-foreground md:table-cell">{item.lastUpdated}</TableCell>
+                      <TableCell className="hidden text-muted-foreground md:table-cell">{lastUpdatedDate}</TableCell>
                       <TableCell className="text-right">
                         {item.bomId && (
-                           <Button variant="outline" size="sm" onClick={() => handleBomRedirect(item.bomId!)}>
+                           <Button variant="outline" size="sm" onClick={() => handleBomRedirect(item.jobNumber!, item.bomId!)}>
                              View BOM
                              <ArrowRight className="ml-2 h-4 w-4" />
                            </Button>
@@ -215,6 +189,11 @@ export default function DashboardPage() {
                     </TableRow>
                   );
                 })}
+                 {!areBomsLoading && filteredItems.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={13} className="text-center">No items match your search.</TableCell>
+                    </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
