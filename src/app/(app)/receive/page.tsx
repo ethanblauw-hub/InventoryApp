@@ -346,7 +346,7 @@ export default function ReceiveStorePage() {
                                 </FormControl>
                                 <SelectContent>
                                     {locations?.map(location => (
-                                    <SelectItem key={location.id} value={location.id}>{location.name}</SelectItem>
+                                    <SelectItem key={location.id} value={location.name}>{location.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                                 </Select>

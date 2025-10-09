@@ -50,7 +50,7 @@ export default function BomsPage() {
   /**
    * Handles the click event on a table row.
    * Navigates the user to the detail page for the selected BOM.
-   * @param {string} bomId - The unique identifier of the BOM.
+   * @param {Bom} bom - The BOM object.
    */
   const handleRowClick = (bom: Bom) => {
     router.push(`/boms/${bom.jobNumber}/${bom.id}`);

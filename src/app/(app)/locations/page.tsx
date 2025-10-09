@@ -85,9 +85,9 @@ export default function LocationsPage() {
     }))
   ) || [];
   
-  const allShelfLocations = shelfLocations?.map(l => l.name) || [];
+  const allShelfLocationNames = shelfLocations?.map(l => l.name) || [];
   const occupiedShelfLocations = new Set(allBomItems.flatMap(item => item.shelfLocations));
-  const occupancyPercentage = allShelfLocations.length > 0 ? (occupiedShelfLocations.size / allShelfLocations.length) * 100 : 0;
+  const occupancyPercentage = allShelfLocationNames.length > 0 ? (occupiedShelfLocations.size / allShelfLocationNames.length) * 100 : 0;
 
   const locationItems = allBomItems.flatMap(item =>
     item.shelfLocations.map(location => ({
@@ -185,7 +185,7 @@ export default function LocationsPage() {
                     <div className="space-y-2">
                       <Progress value={occupancyPercentage} />
                       <p className="text-sm text-muted-foreground">
-                        {occupiedShelfLocations.size} of {allShelfLocations.length} shelf locations are occupied.
+                        {occupiedShelfLocations.size} of {allShelfLocationNames.length} shelf locations are occupied.
                       </p>
                     </div>
                   </TooltipTrigger>

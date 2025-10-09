@@ -59,7 +59,7 @@ export default function DashboardPage() {
     bom.items.map(item => ({
       ...item,
       bomId: bom.id,
-      jobId: bom.jobNumber, // Use jobNumber for the job's ID
+      jobId: bom.jobNumber, 
       jobNumber: bom.jobNumber,
       jobName: bom.jobName,
       projectManager: bom.projectManager,
