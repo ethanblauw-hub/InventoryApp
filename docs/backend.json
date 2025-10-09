@@ -32,37 +32,111 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the BOM."
+          "description": "Unique identifier for the BOM document, stored within the document itself."
         },
-        "name": {
+        "jobNumber": {
           "type": "string",
-          "description": "Name of the BOM (e.g., 'Job 123 Order BOM', 'Job 123 Design BOM')."
+          "description": "Unique identifier Job Number that the BOM is connected to."
+        },
+        "jobName": {
+          "type": "string",
+          "description": "Name of the Job for the BOM (e.g., 'Job 123 Order BOM', 'Job 123 Design BOM')."
         },
         "type": {
           "type": "string",
-          "description": "Type of BOM ('Order' or 'Design')."
+          "enum": [
+            "order",
+            "design"
+          ],
+          "description": "Type of BOM ('order' or 'design')."
         },
         "uploadDate": {
           "type": "string",
-          "description": "Date when the BOM was uploaded.",
+          "description": "ISO date string for when the BOM was uploaded.",
           "format": "date-time"
         },
-        "jobId": {
+        "projectManager": {
           "type": "string",
-          "description": "Reference to Job. (Relationship: Job 1:N Bom)"
+          "description": "Name of the Project Manager for the job."
+        },
+        "primaryFieldLeader": {
+          "type": "string",
+          "description": "Name of the Primary Field Leader for the job."
         },
         "workCategoryId": {
           "type": "string",
-          "description": "Reference to WorkCategory. (Relationship: WorkCategory 1:N Bom)"
+          "description": "Reference to WorkCategory."
+        },
+        "items": {
+          "type": "array",
+          "description": "An array of items included in this BOM.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for the BOM item."
+              },
+              "description": {
+                "type": "string",
+                "description": "The description or part number of the item."
+              },
+              "orderBomQuantity": {
+                "type": "number",
+                "description": "The quantity specified in the Order BOM (estimate)."
+              },
+              "designBomQuantity": {
+                "type": "number",
+                "description": "The quantity specified in the Design BOM (actual)."
+              },
+              "onHandQuantity": {
+                "type": "number",
+                "description": "The current quantity available in the shop."
+              },
+              "shippedQuantity": {
+                "type": "number",
+                "description": "The quantity that has been shipped to the job site."
+              },
+              "shelfLocations": {
+                "type": "array",
+                "description": "An array of shelf location names where the item is stored.",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "lastUpdated": {
+                "type": "string",
+                "description": "ISO date string for when the item was last updated.",
+                "format": "date-time"
+              },
+              "imageId": {
+                "type": "string",
+                "description": "An ID for a placeholder image."
+              }
+            },
+            "required": [
+              "id",
+              "description",
+              "orderBomQuantity",
+              "designBomQuantity",
+              "onHandQuantity",
+              "shippedQuantity",
+              "shelfLocations",
+              "lastUpdated"
+            ]
+          }
         }
       },
       "required": [
         "id",
-        "name",
+        "jobNumber",
+        "jobName",
         "type",
         "uploadDate",
-        "jobId",
-        "workCategoryId"
+        "projectManager",
+        "primaryFieldLeader",
+        "workCategoryId",
+        "items"
       ]
     },
     "InventoryItem": {
