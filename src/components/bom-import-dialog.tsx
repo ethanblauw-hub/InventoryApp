@@ -29,10 +29,14 @@ import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
 import * as XLSX from 'xlsx';
 import { useFirestore } from '@/firebase';
-import { collection, serverTimestamp, doc, setDoc } from "firebase/firestore";
+import { collection, doc, setDoc } from "firebase/firestore";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 
 type BomType = "order" | "design";
+type ParsedBomItem = {
+  description: string;
+  quantity: number;
+};
 type ParsedBom = {
   jobInfo: {
     jobNumber: string;
@@ -41,7 +45,7 @@ type ParsedBom = {
     primaryFieldLeader: string;
     workCategoryId: string;
   };
-  items: any[];
+  items: ParsedBomItem[];
 };
 
 export function BomImportDialog() {
@@ -56,6 +60,7 @@ export function BomImportDialog() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       setFile(event.target.files[0]);
+      setParsedBom(null); // Reset parsed data when file changes
     }
   };
 
@@ -69,28 +74,44 @@ export function BomImportDialog() {
       return;
     }
     
+    // Assuming the first row has all the necessary job info
     const firstRow = parsedRows[0];
     const jobInfo = {
-      jobNumber: firstRow["Job Number"],
-      jobName: firstRow["Job Name"],
-      projectManager: firstRow["PM"],
-      primaryFieldLeader: firstRow["Primary Field Leader"],
-      workCategoryId: firstRow["Category"] || "cat-1", // Default category if not present
+      jobNumber: firstRow["Job Number"] || "N/A",
+      jobName: firstRow["Job Name"] || "N/A",
+      projectManager: firstRow["PM"] || "N/A",
+      primaryFieldLeader: firstRow["Primary Field Leader"] || "N/A",
+      // Default to a general category if not specified in the file
+      workCategoryId: firstRow["Category"] || "cat-3",
     };
 
-    const bomItems = parsedRows.map(row => ({
-      description: row["Description/Part Number"],
+    const bomItems: ParsedBomItem[] = parsedRows.map(row => ({
+      // Adjust key to "Description/Part Number" or a more generic key
+      description: row["Description/Part Number"] || row["Part Number"] || "Unknown Item",
       quantity: parseInt(row["Quantity"], 10) || 0,
-    }));
+    })).filter(item => item.quantity > 0);
+
+    if (bomItems.length === 0) {
+        toast({
+            variant: "destructive",
+            title: "No Items Found",
+            description: "No items with valid quantities were found in the file."
+        });
+        return;
+    }
 
     setParsedBom({ jobInfo, items: bomItems });
     setIsConfirmOpen(true);
   };
 
   const handleFinalSubmit = async () => {
-    if (!parsedBom || !firestore) return;
+    if (!parsedBom || !firestore) {
+      toast({ variant: "destructive", title: "Error", description: "No BOM data to submit." });
+      return;
+    }
 
     const { jobInfo, items } = parsedBom;
+    const now = new Date().toISOString(); // Generate a client-side timestamp as an ISO string
 
     const bomItemsForFirestore = items.map(item => ({
       id: `item-${Math.random().toString(36).substr(2, 9)}`,
@@ -100,22 +121,25 @@ export function BomImportDialog() {
       onHandQuantity: 0,
       shippedQuantity: 0,
       shelfLocations: [],
-      lastUpdated: serverTimestamp(),
+      lastUpdated: now, // Use the client-side timestamp string
       imageId: '',
     }));
 
-    const jobDocRef = doc(firestore, 'jobs', jobInfo.jobNumber);
-    const bomColRef = collection(jobDocRef, 'boms');
-    const bomDocRef = doc(bomColRef);
-
-    const newBomDocument = {
-      id: bomDocRef.id,
-      ...jobInfo,
-      items: bomItemsForFirestore,
-    };
-
     try {
+      const jobDocRef = doc(firestore, 'jobs', jobInfo.jobNumber);
+      const bomColRef = collection(jobDocRef, 'boms');
+      const bomDocRef = doc(bomColRef); // Creates a ref with a new auto-generated ID
+
+      const newBomDocument = {
+        id: bomDocRef.id,
+        ...jobInfo,
+        items: bomItemsForFirestore,
+        type: bomType,
+        uploadDate: now,
+      };
+
       await setDoc(bomDocRef, newBomDocument);
+      
       toast({
         title: "BOM Imported Successfully",
         description: `BOM for job ${jobInfo.jobName} has been created.`,
@@ -125,17 +149,16 @@ export function BomImportDialog() {
        toast({
          variant: "destructive",
          title: "Firestore Error",
-         description: "Failed to save the BOM. Please check console for details.",
+         description: "Failed to save the BOM. See console for details.",
        });
     } finally {
-        // Reset state
+        // Reset state after submission
         setIsConfirmOpen(false);
         setParsedBom(null);
         setFile(null);
         setOpen(false);
     }
   };
-
 
   const handleImport = () => {
     if (!file) {
@@ -149,24 +172,28 @@ export function BomImportDialog() {
     reader.onload = (e) => {
       const data = e.target?.result;
       try {
+        let parsedRows: any[] = [];
         if (fileExtension === 'csv' && typeof data === 'string') {
           Papa.parse(data, {
             header: true,
             skipEmptyLines: true,
-            complete: (results) => processAndShowConfirm(results.data),
+            complete: (results) => {
+              processAndShowConfirm(results.data);
+            },
             error: (error: any) => {
               toast({ variant: "destructive", title: "CSV Parsing Failed", description: error.message });
             },
           });
+          return; // PapaParse is async, so we return here
         } else if (fileExtension === 'xlsx' && data instanceof ArrayBuffer) {
             const workbook = XLSX.read(data, { type: 'array' });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
-            const json = XLSX.utils.sheet_to_json(worksheet);
-            processAndShowConfirm(json);
+            parsedRows = XLSX.utils.sheet_to_json(worksheet);
         } else {
-           throw new Error("Unsupported file type or data format.");
+           throw new Error("Unsupported file type. Please use .csv or .xlsx.");
         }
+        processAndShowConfirm(parsedRows);
       } catch (error: any) {
         console.error("Error parsing file:", error);
         toast({
@@ -177,10 +204,16 @@ export function BomImportDialog() {
       }
     };
     
+    reader.onerror = () => {
+        toast({ variant: "destructive", title: "File Read Error", description: "Could not read the selected file." });
+    };
+    
     if (fileExtension === 'xlsx') {
         reader.readAsArrayBuffer(file);
-    } else {
+    } else if (fileExtension === 'csv') {
         reader.readAsText(file);
+    } else {
+        toast({ variant: "destructive", title: "Unsupported File", description: "Please select a .csv or .xlsx file." });
     }
   };
 
@@ -231,10 +264,10 @@ export function BomImportDialog() {
                  <AlertDialogHeader>
                     <AlertDialogTitle>Confirm BOM Import</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Please review the details below before creating the new Bill of Materials for <strong>{parsedBom.jobInfo.jobName} ({parsedBom.jobInfo.jobNumber})</strong>.
+                        Please review the details for the new <strong>{bomType.toUpperCase()} BOM</strong> for job <strong>{parsedBom.jobInfo.jobName} ({parsedBom.jobInfo.jobNumber})</strong>.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
-                <div className="max-h-96 overflow-auto">
+                <div className="mt-4 max-h-80 overflow-auto rounded-md border">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -262,3 +295,5 @@ export function BomImportDialog() {
     </>
   )
 }
+
+    
