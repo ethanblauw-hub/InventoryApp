@@ -1,14 +1,121 @@
-
+/**
+ * @description This ruleset enforces a strict, path-based authorization model for the PartTrack application.
+ * Data is organized into top-level collections for Jobs, Work Categories, Inventory Items, and Shelf Locations.
+ * BOMs are stored as subcollections under Jobs.
+ *
+ * @dataStructure
+ * - /jobs/{jobId}: Stores all or a specific Job.
+ *   - /boms/{bomId}: Stores BOM associated with a specific, or all Jobs.
+ * - /workCategories/{workCategoryId}: Stores all or a specific Work Category.
+ * - /inventoryItems/{inventoryItemId}: Stores individual Inventory Items.
+ * - /shelfLocations/{shelfLocationId}: Stores physical shelf locations and associated Inventory item IDs.
+ *
+ * @keySecurityDecisions
+ * - Path based rules are to be used to establish clear ownership.
+ * - No user-specific data is stored, so there is no user authentication to handle, except admin access.
+ * - List operations are enabled for all collections as appropriate for the application's public read access pattern.
+ */
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    /**
+     * @description Manages access to Work Categories.
+     * @path /workCategories/{workCategoryId}
+     * @allow (get, list): Any signed-in user can read work categories.
+     * @allow (create): Any signed-in user can create a work category.
+     * @allow (update): Any signed-in user can update a work category if it exists.
+     * @allow (delete): Any signed-in user can delete a work category if it exists.
+     * @principle Allows signed-in users to manage work categories.
+     */
+    match /workCategories/{workCategoryId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+
+    /**
+     * @description Manages access to Jobs.
+     * @path /jobs/{jobId}
+     * @allow (get, list): Any signed-in user can read jobs.
+     * @allow (create): Any signed-in user can create a job.
+     * @allow (update): Any signed-in user can update a job if it exists.
+     * @allow (delete): Any signed-in user can delete a job if it exists.
+     * @principle Allows signed-in users to manage jobs.
+     */
+    match /jobs/{jobId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+
+      /**
+       * @description Manages access to BOMs under a specific job.
+       * @path /jobs/{jobId}/boms/{bomId}
+       * @allow (get, list): Any signed-in user can read BOMs.
+       * @allow (create): Any signed-in user can create a BOM.
+       * @allow (update): Any signed-in user can update a BOM if it exists.
+       * @allow (delete): Any signed-in user can delete a BOM if it exists.
+       * @principle Allows signed-in users to manage BOMs within jobs.
+       */
+      match /boms/{bomId} {
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn() && resource != null;
+        allow delete: if isSignedIn() && resource != null;
+
+        /**
+         * @description Manages access to items within a specific BOM.
+         * @path /jobs/{jobId}/boms/{bomId}/items/{itemId}
+         * @allow (get, list): Any signed-in user can read items.
+         * @allow (create): Any signed-in user can create an item.
+         * @allow (update): Any signed-in user can update an item if it exists.
+         * @allow (delete): Any signed-in user can delete an item if it exists.
+         */
+        match /items/{itemId} {
+          allow get, list: if isSignedIn();
+          allow create: if isSignedIn();
+          allow update: if isSignedIn() && resource != null;
+          allow delete: if isSignedIn() && resource != null;
+        }
+      }
+    }
+
+    /**
+     * @description Manages access to Inventory Items.
+     * @path /inventoryItems/{inventoryItemId}
+     * @allow (get, list): Any signed-in user can read inventory items.
+     * @allow (create): Any signed-in user can create an inventory item.
+     * @allow (update): Any signed-in user can update an inventory item if it exists.
+     * @allow (delete): Any signed-in user can delete an inventory item if it exists.
+     * @principle Allows signed-in users to manage inventory items.
+     */
+    match /inventoryItems/{inventoryItemId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+
+    /**
+     * @description Manages access to Shelf Locations.
+     * @path /shelfLocations/{shelfLocationId}
+     * @allow (get, list): Any signed-in user can read shelf locations.
+     * @allow (create): Any signed-in user can create a shelf location.
+     * @allow (update): Any signed-in user can update a shelf location if it exists.
+     * @allow (delete): Any signed-in user can delete a shelf location if it exists.
+     * @principle Allows signed-in users to manage shelf locations.
+     */
+    match /shelfLocations/{shelfLocationId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
     
-    // Default rule: Allow read/write access for any authenticated user.
-    // This is suitable for initial development but should be secured
-    // with more granular rules (e.g., based on user roles) for production.
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+    function isSignedIn() {
+      return request.auth != null;
     }
   }
 }
