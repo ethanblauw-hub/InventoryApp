@@ -18,7 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useFirestore, useMemoFirebase, useUser as useAuthUser } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, collectionGroup, query } from 'firebase/firestore';
-import { Bom, Location } from '@/lib/data';
+import { Bom, Location, boms as mockBoms, locations as mockLocations } from '@/lib/data';
 
 /**
  * Defines the columns that can be used for sorting the locations table.
@@ -61,6 +61,14 @@ export default function LocationsPage() {
     setSearch(searchParams.get('search') || '');
   }, [searchParams]);
 
+  // Using mock data for now
+  const shelfLocations = mockLocations;
+  const boms = mockBoms;
+  const areLocationsLoading = false;
+  const areBomsLoading = false;
+
+  /*
+  // Firestore data fetching (commented out to use mock data)
   const locationsQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'shelfLocations') : null),
     [firestore]
@@ -72,6 +80,7 @@ export default function LocationsPage() {
     [firestore]
   );
   const { data: boms, isLoading: areBomsLoading } = useCollection<Bom>(bomsQuery);
+  */
 
   const allBomItems = boms?.flatMap(bom =>
     bom.items.map(item => ({
@@ -121,10 +130,10 @@ export default function LocationsPage() {
 
     return (
       item.location.toLowerCase().includes(searchTerm) ||
-      item.jobNumber.toLowerCase().includes(searchTerm) ||
-      item.jobName.toLowerCase().includes(searchTerm) ||
-      item.projectManager.toLowerCase().includes(searchTerm) ||
-      item.primaryFieldLeader.toLowerCase().includes(searchTerm) ||
+      (item.jobNumber && item.jobNumber.toLowerCase().includes(searchTerm)) ||
+      (item.jobName && item.jobName.toLowerCase().includes(searchTerm)) ||
+      (item.projectManager && item.projectManager.toLowerCase().includes(searchTerm)) ||
+      (item.primaryFieldLeader && item.primaryFieldLeader.toLowerCase().includes(searchTerm)) ||
       item.description.toLowerCase().includes(searchTerm) ||
       item.lastUpdated.toString().toLowerCase().includes(searchTerm)
     );
@@ -145,8 +154,8 @@ export default function LocationsPage() {
     if (comparison === 0) {
       if (a.location < b.location) comparison = -1;
       else if (a.location > b.location) comparison = 1;
-      else if (a.jobNumber < b.jobNumber) comparison = -1;
-      else if (a.jobNumber > b.jobNumber) comparison = 1;
+      else if (a.jobNumber && b.jobNumber && a.jobNumber < b.jobNumber) comparison = -1;
+      else if (a.jobNumber && b.jobNumber && a.jobNumber > b.jobNumber) comparison = 1;
     }
 
     return sortDirection === 'asc' ? comparison : comparison * -1;
@@ -304,3 +313,5 @@ export default function LocationsPage() {
     </div>
   );
 }
+
+    
