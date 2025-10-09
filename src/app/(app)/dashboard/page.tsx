@@ -26,7 +26,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { useFirestore, useMemoFirebase, useUser as useAuthUser } from '@/firebase';
+import { useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collectionGroup, query } from 'firebase/firestore';
 import { Bom } from '@/lib/data';
@@ -46,7 +46,7 @@ export default function DashboardPage() {
   const [search, setSearch] = useState('');
   const [showMyJobsOnly, setShowMyJobsOnly] = useState(false);
   const router = useRouter();
-  const { user: currentUser } = useAuthUser();
+  const { user: currentUser } = useUser();
   const firestore = useFirestore();
   
   const bomsQuery = useMemoFirebase(
@@ -202,5 +202,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
