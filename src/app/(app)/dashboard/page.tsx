@@ -180,7 +180,7 @@ export default function DashboardPage() {
                       <TableCell className="hidden text-muted-foreground md:table-cell">{lastUpdatedDate}</TableCell>
                       <TableCell className="text-right">
                         {item.bomId && item.jobId && (
-                           <Button variant="outline" size="sm" onClick={() => handleBomRedirect(item.jobId!, item.bomId!)}>
+                           <Button variant="outline" size="sm" onClick={() => handleBomRedirect(item.jobId, item.bomId)}>
                              View BOM
                              <ArrowRight className="ml-2 h-4 w-4" />
                            </Button>
