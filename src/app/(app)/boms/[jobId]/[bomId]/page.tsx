@@ -28,9 +28,11 @@ import { UpdateBOMDialog } from '@/components/update-bom-dialog';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import { doc } from 'firebase/firestore';
 import { useFirestore, useMemoFirebase } from '@/firebase';
-import { Bom, Category } from '@/lib/data';
+import { Bom } from '@/lib/data';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection } from 'firebase/firestore';
+import { Category } from '@/lib/data';
+
 
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
 
@@ -80,10 +82,8 @@ export default function BomDetailPage({ params }: BomDetailPageProps) {
   }
   
   if (!bom) {
-    if (!isBomLoading) {
-      notFound();
-    }
-    return null; // Render nothing while loading or if not found initially
+    // If loading is finished and we still have no bom, it's a 404
+    notFound();
   }
   
   const workCategory = categories?.find(c => c.id === bom.workCategoryId);
