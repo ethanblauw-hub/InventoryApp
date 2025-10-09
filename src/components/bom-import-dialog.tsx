@@ -29,7 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
 import * as XLSX from 'xlsx';
 import { useFirestore } from '@/firebase';
-import { collection, doc, setDoc } from "firebase/firestore";
+import { collection, doc, setDoc, writeBatch } from "firebase/firestore";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { BomItem } from "@/lib/data";
 
@@ -109,30 +109,23 @@ export function BomImportDialog() {
     const { jobInfo, items } = parsedBom;
     const now = new Date().toISOString();
 
-    const bomItemsForFirestore: Omit<BomItem, 'orderBomQuantity' | 'designBomQuantity'>[] = items.map(item => ({
-      id: `item-${Math.random().toString(36).substr(2, 9)}`,
-      description: item.description,
-      onHandQuantity: 0,
-      shippedQuantity: 0,
-      shelfLocations: [],
-      lastUpdated: now,
-      imageId: '',
-    }));
-
     try {
-      // Ensure the parent job document exists, as rules might require it.
+      // Create a batch
+      const batch = writeBatch(firestore);
+
+      // 1. Reference and set the job document
       const jobDocRef = doc(firestore, 'jobs', jobInfo.jobNumber);
-      // Using setDoc with merge: true safely creates or updates the job document.
-      await setDoc(jobDocRef, { 
+      const cleanJobData = { 
         id: jobInfo.jobNumber,
         name: jobInfo.jobName || `Job ${jobInfo.jobNumber}`,
         description: `Job ${jobInfo.jobName}`,
-       }, { merge: true });
+      };
+      batch.set(jobDocRef, cleanJobData, { merge: true });
 
+      // 2. Reference and set the BOM document in the subcollection
       const bomColRef = collection(jobDocRef, 'boms');
       const bomDocRef = doc(bomColRef); 
 
-      // Sanitize jobInfo to ensure no undefined values are sent
       const cleanJobInfo = {
         jobNumber: jobInfo.jobNumber || 'N/A',
         jobName: jobInfo.jobName || 'Unknown Job',
@@ -157,14 +150,17 @@ export function BomImportDialog() {
         uploadDate: now,
       };
 
-      await setDoc(bomDocRef, newBomDocument);
+      batch.set(bomDocRef, newBomDocument);
+      
+      // 3. Commit the batch
+      await batch.commit();
       
       toast({
         title: "BOM Imported Successfully",
         description: `BOM for job ${jobInfo.jobName} has been created.`,
       });
     } catch (error: any) {
-       console.error("Error writing document: ", error);
+       console.error("Error writing document batch: ", error);
        toast({
          variant: "destructive",
          title: "Firestore Error",
@@ -315,3 +311,5 @@ export function BomImportDialog() {
     </>
   )
 }
+
+    
