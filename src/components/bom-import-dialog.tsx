@@ -29,7 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
 import * as XLSX from 'xlsx';
 import { useFirestore } from '@/firebase';
-import { collection, doc, setDoc, writeBatch } from "firebase/firestore";
+import { collection, doc, writeBatch } from "firebase/firestore";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { BomItem } from "@/lib/data";
 
@@ -155,10 +155,14 @@ export function BomImportDialog() {
       // 3. Commit the batch
       await batch.commit();
       
+      // On success, show toast and reset form
       toast({
         title: "BOM Imported Successfully",
         description: `BOM for job ${jobInfo.jobName} has been created.`,
       });
+      setParsedBom(null);
+      setFile(null);
+
     } catch (error: any) {
        console.error("Error writing document batch: ", error);
        toast({
@@ -167,9 +171,8 @@ export function BomImportDialog() {
          description: `Failed to save the BOM: ${error.message}`,
        });
     } finally {
+        // This runs whether the try succeeded or failed
         setIsConfirmOpen(false);
-        setParsedBom(null);
-        setFile(null);
         setOpen(false);
     }
   };
@@ -311,5 +314,7 @@ export function BomImportDialog() {
     </>
   )
 }
+
+    
 
     
