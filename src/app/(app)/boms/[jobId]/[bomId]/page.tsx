@@ -24,11 +24,11 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { notFound, useRouter } from 'next/navigation';
 import { EditBOMDialog } from '@/components/edit-bom-dialog';
-import { useDoc } from '@/firebase/firestore/use-doc';
+import { useDoc } from '@/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { Bom } from '@/lib/data';
-import { useCollection } from '@/firebase/firestore/use-collection';
+import { useCollection } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import { Category } from '@/lib/data';
 import {

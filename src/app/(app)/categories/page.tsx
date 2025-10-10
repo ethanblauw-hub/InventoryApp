@@ -12,8 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Pencil, Trash2, UserCog } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useFirestore, useMemoFirebase } from '@/firebase';
-import { useCollection } from '@/firebase/firestore/use-collection';
+import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import { AddCategoryDialog } from '@/components/add-category-dialog';
 

@@ -19,8 +19,7 @@ import {
 import { BomImportDialog } from '@/components/bom-import-dialog';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
-import { useFirestore, useMemoFirebase } from '@/firebase';
-import { useCollection } from '@/firebase/firestore/use-collection';
+import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { collection, collectionGroup, query } from 'firebase/firestore';
 import { Bom, Category } from '@/lib/data';
 import { time } from 'console';

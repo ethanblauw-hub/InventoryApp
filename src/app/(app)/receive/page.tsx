@@ -31,8 +31,7 @@ import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import Image from 'next/image';
-import { useFirestore, useMemoFirebase } from '@/firebase';
-import { useCollection } from '@/firebase/firestore/use-collection';
+import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { collection, collectionGroup, query } from 'firebase/firestore';
 import { Bom, Category, Location } from '@/lib/data';
 

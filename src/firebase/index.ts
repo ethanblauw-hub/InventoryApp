@@ -12,6 +12,8 @@
 import { FirebaseProvider, useUser, useAuth, useFirestore, useFirebaseApp, useMemoFirebase } from './provider';
 import { firebaseConfig } from './config';
 import { FirebaseClientProvider } from './client-provider';
+import { useCollection } from './firestore/use-collection';
+import { useDoc } from './firestore/use-doc';
 
 
 export {
@@ -22,5 +24,7 @@ export {
   useAuth,
   useFirestore,
   useFirebaseApp,
-  useMemoFirebase
+  useMemoFirebase,
+  useCollection,
+  useDoc
 };

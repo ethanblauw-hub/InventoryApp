@@ -26,8 +26,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { useCollection } from '@/firebase/firestore/use-collection';
+import { useFirestore, useMemoFirebase, useUser, useCollection } from '@/firebase';
 import { collectionGroup, query } from 'firebase/firestore';
 import { Bom } from '@/lib/data';
 
