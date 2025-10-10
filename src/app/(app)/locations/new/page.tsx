@@ -1,4 +1,7 @@
 
+'use client';
+
+import { useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,7 +16,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { UserCog, Upload } from 'lucide-react';
-import Link from 'next/link';
+import { useFirestore } from '@/firebase';
+import { useToast } from '@/hooks/use-toast';
+import { collection, doc, writeBatch } from 'firebase/firestore';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import Papa from 'papaparse';
 
 /**
  * A page component for adding new shelf locations.
@@ -24,6 +31,122 @@ import Link from 'next/link';
  * @returns {JSX.Element} The rendered new location page.
  */
 export default function NewLocationPage() {
+  const [shelfName, setShelfName] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const handleCreateSingle = async () => {
+    if (!shelfName.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Shelf name cannot be empty.',
+      });
+      return;
+    }
+    if (!firestore) return;
+
+    setIsCreating(true);
+    try {
+      const locationRef = doc(collection(firestore, 'shelfLocations'));
+      await setDocumentNonBlocking(locationRef, {
+        id: locationRef.id,
+        name: shelfName.trim(),
+        items: [],
+      }, { merge: false });
+
+      toast({
+        title: 'Shelf Created',
+        description: `Successfully created shelf "${shelfName.trim()}".`,
+      });
+      setShelfName('');
+    } catch (error) {
+      console.error('Error creating shelf:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to create shelf. Please check permissions.',
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handleImportFile = () => {
+    if (!file) {
+      toast({ variant: 'destructive', title: 'No file selected.' });
+      return;
+    }
+    if (!firestore) return;
+
+    setIsImporting(true);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        try {
+          const rows = results.data as { name?: string }[];
+          if (!results.meta.fields?.includes('name')) {
+            throw new Error("CSV must have a 'name' column header.");
+          }
+
+          const validLocations = rows
+            .map((row) => row.name?.trim())
+            .filter((name): name is string => !!name);
+            
+          if (validLocations.length === 0) {
+            throw new Error("No valid shelf names found in the file.");
+          }
+
+          const batch = writeBatch(firestore);
+          validLocations.forEach((locationName) => {
+            const docRef = doc(collection(firestore, 'shelfLocations'));
+            batch.set(docRef, { id: docRef.id, name: locationName, items: [] });
+          });
+
+          await batch.commit();
+
+          toast({
+            title: 'Import Successful',
+            description: `Successfully imported ${validLocations.length} shelf locations.`,
+          });
+          setFile(null);
+          // Reset file input
+          const fileInput = document.getElementById('shelf-file') as HTMLInputElement;
+          if (fileInput) fileInput.value = '';
+
+        } catch (error: any) {
+          console.error('Error importing shelves:', error);
+          toast({
+            variant: 'destructive',
+            title: 'Import Failed',
+            description: error.message || 'Could not import shelves.',
+          });
+        } finally {
+          setIsImporting(false);
+        }
+      },
+      error: (error: any) => {
+        toast({
+          variant: 'destructive',
+          title: 'Parsing Error',
+          description: error.message,
+        });
+        setIsImporting(false);
+      },
+    });
+  };
+
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -52,12 +175,17 @@ export default function NewLocationPage() {
               <Label htmlFor="shelf-name">Shelf Name / Code</Label>
               <Input
                 id="shelf-name"
-                placeholder="e.g., Aisle A, Shelf 1 or C-03-B"
+                placeholder="e.g., A.00.A"
+                value={shelfName}
+                onChange={(e) => setShelfName(e.target.value)}
+                disabled={isCreating}
               />
             </div>
           </CardContent>
           <CardFooter>
-            <Button>Create Shelf</Button>
+            <Button onClick={handleCreateSingle} disabled={isCreating}>
+              {isCreating ? 'Creating...' : 'Create Shelf'}
+            </Button>
           </CardFooter>
         </Card>
 
@@ -72,13 +200,13 @@ export default function NewLocationPage() {
           <CardContent className="space-y-4">
             <div className="grid w-full max-w-sm items-center gap-1.5">
               <Label htmlFor="shelf-file">File</Label>
-              <Input id="shelf-file" type="file" />
+              <Input id="shelf-file" type="file" accept=".csv" onChange={handleFileChange} disabled={isImporting}/>
             </div>
           </CardContent>
           <CardFooter>
-            <Button>
+            <Button onClick={handleImportFile} disabled={isImporting || !file}>
               <Upload className="mr-2 h-4 w-4" />
-              Import File
+              {isImporting ? 'Importing...' : 'Import File'}
             </Button>
           </CardFooter>
         </Card>

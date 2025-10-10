@@ -31,7 +31,7 @@ import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import Image from 'next/image';
 import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { collection, collectionGroup, query, runTransaction, doc, where, getDocs } from 'firebase/firestore';
+import { collection, collectionGroup, query, runTransaction, doc, where, getDocs, writeBatch } from 'firebase/firestore';
 import { Bom, Category, Location, BomItem, Container } from '@/lib/data';
 import { useRouter } from 'next/navigation';
 
@@ -114,6 +114,9 @@ export default function ReceiveStorePage() {
     setIsSubmitting(true);
     
     try {
+      // Use a single batched write to ensure atomicity
+      const batch = writeBatch(firestore);
+
       for (const container of values.containers) {
         const containerData: Omit<Container, 'id' | 'receiptDate'> = {
           jobNumber: values.jobNumber,
@@ -125,48 +128,48 @@ export default function ReceiveStorePage() {
           notes: container.notes,
           imageUrl: container.imageUrl,
         };
+        
+        // Create a new container document
+        const newContainerRef = doc(collection(firestore, 'containers'));
+        const newContainer: Container = {
+            ...containerData,
+            id: newContainerRef.id,
+            receiptDate: new Date().toISOString(),
+        };
+        batch.set(newContainerRef, newContainer);
 
-        await runTransaction(firestore, async (transaction) => {
-            const containersRef = collection(firestore, 'containers');
-            const newContainerRef = doc(containersRef);
+        // If a job is associated, update the BOM quantities
+        if (containerData.jobNumber) {
+            const bomsQuery = query(
+                collectionGroup(firestore, 'boms'),
+                where('jobNumber', '==', containerData.jobNumber)
+            );
             
-            const newContainer: Container = {
-                ...containerData,
-                id: newContainerRef.id,
-                receiptDate: new Date().toISOString(),
-            };
-            transaction.set(newContainerRef, newContainer);
+            const bomsSnapshot = await getDocs(bomsQuery);
 
-            if (containerData.jobNumber) {
-                const bomsQuery = query(
-                    collectionGroup(firestore, 'boms'),
-                    where('jobNumber', '==', containerData.jobNumber)
-                );
+            if (!bomsSnapshot.empty) {
+                const bomDoc = bomsSnapshot.docs[0];
+                const bomData = bomDoc.data() as Bom;
+                const bomRef = bomDoc.ref;
+
+                const updatedItems = bomData.items.map(bomItem => {
+                    const receivedItem = containerData.items.find(ci => ci.description === bomItem.description);
+                    if (receivedItem) {
+                        return {
+                            ...bomItem,
+                            onHandQuantity: (bomItem.onHandQuantity || 0) + receivedItem.quantity,
+                            lastUpdated: new Date().toISOString(),
+                        };
+                    }
+                    return bomItem;
+                });
                 
-                const bomsSnapshot = await getDocs(bomsQuery);
-
-                if (!bomsSnapshot.empty) {
-                    const bomDoc = bomsSnapshot.docs[0];
-                    const bomData = bomDoc.data() as Bom;
-                    const bomRef = bomDoc.ref;
-
-                    const updatedItems = bomData.items.map(bomItem => {
-                        const receivedItem = containerData.items.find(ci => ci.description === bomItem.description);
-                        if (receivedItem) {
-                            return {
-                                ...bomItem,
-                                onHandQuantity: (bomItem.onHandQuantity || 0) + receivedItem.quantity,
-                                lastUpdated: new Date().toISOString(),
-                            };
-                        }
-                        return bomItem;
-                    });
-                    
-                    transaction.update(bomRef, { items: updatedItems });
-                }
+                batch.update(bomRef, { items: updatedItems });
             }
-        });
+        }
       }
+
+      await batch.commit();
 
       toast({
         title: "Success",
