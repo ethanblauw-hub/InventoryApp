@@ -29,8 +29,8 @@ export async function deleteBom(jobId: string, bomId: string) {
     revalidatePath('/boms');
   } catch (error) {
     console.error('Error deleting BOM:', error);
-    // Optionally return an error message to display in the UI
-    return { error: 'Failed to delete BOM.' };
+    // Throw the error to be caught by the client-side caller
+    throw new Error('Failed to delete BOM.');
   }
   
   // Redirect back to the main BOMs page after successful deletion
