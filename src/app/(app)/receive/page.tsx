@@ -221,12 +221,12 @@ export default function ReceiveStorePage() {
       
       router.push('/containers');
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to receive container:", error);
         toast({
             variant: "destructive",
             title: "Submission Failed",
-            description: "There was an error processing your request. Please check permissions and try again.",
+            description: error.message || "There was an error processing your request. Please check permissions and try again.",
         });
     } finally {
         setIsSubmitting(false);
@@ -269,6 +269,12 @@ export default function ReceiveStorePage() {
     }
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -277,7 +283,7 @@ export default function ReceiveStorePage() {
       />
       
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <form onKeyDown={handleKeyDown} onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <Card>
             <CardHeader>
               <CardTitle>Primary Information</CardTitle>
