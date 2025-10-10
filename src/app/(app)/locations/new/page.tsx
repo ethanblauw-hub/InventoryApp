@@ -18,7 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { UserCog, Upload } from 'lucide-react';
 import { useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { collection, doc, writeBatch } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDocs } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import Papa from 'papaparse';
 
@@ -106,6 +106,10 @@ export default function NewLocationPage() {
               if (!results.meta.fields?.includes('name')) {
                 throw new Error("CSV must have a 'name' column header.");
               }
+
+              const shelfLocationsRef = collection(firestore, 'shelfLocations');
+              const existingLocationsSnapshot = await getDocs(shelfLocationsRef);
+              const existingNames = new Set(existingLocationsSnapshot.docs.map(doc => doc.data().name));
     
               const validLocations = rows
                 .map((row) => row.name?.trim())
@@ -114,19 +118,24 @@ export default function NewLocationPage() {
               if (validLocations.length === 0) {
                 throw new Error("No valid shelf names found in the file.");
               }
-    
-              const batch = writeBatch(firestore);
-              validLocations.forEach((locationName) => {
-                const docRef = doc(collection(firestore, 'shelfLocations'));
-                batch.set(docRef, { id: docRef.id, name: locationName, items: [] });
-              });
-    
-              await batch.commit();
+              
+              const newLocations = validLocations.filter(name => !existingNames.has(name));
+              const skippedCount = validLocations.length - newLocations.length;
+              
+              if (newLocations.length > 0) {
+                const batch = writeBatch(firestore);
+                newLocations.forEach((locationName) => {
+                  const docRef = doc(shelfLocationsRef);
+                  batch.set(docRef, { id: docRef.id, name: locationName, items: [] });
+                });
+                await batch.commit();
+              }
     
               toast({
-                title: 'Import Successful',
-                description: `Successfully imported ${validLocations.length} shelf locations.`,
+                title: 'Import Complete',
+                description: `Successfully imported ${newLocations.length} new shelf locations. ${skippedCount} duplicate(s) were skipped.`,
               });
+
               setFile(null);
               // Reset file input
               const fileInput = document.getElementById('shelf-file') as HTMLInputElement;
