@@ -34,7 +34,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import Image from 'next/image';
 import { useFirestore, useMemoFirebase, useCollection, useUser, useFirebaseApp } from '@/firebase';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, collectionGroup, query, runTransaction, doc, where, getDocs } from 'firebase/firestore';
+import { collection, collectionGroup, query, runTransaction, doc, where, getDocs, DocumentSnapshot, Transaction } from 'firebase/firestore';
 import { Bom, Category, Location, BomItem, Container } from '@/lib/data';
 import { useRouter } from 'next/navigation';
 import React from 'react';
@@ -133,11 +133,9 @@ export default function ReceiveStorePage() {
     const storage = getStorage(firebaseApp);
     
     try {
-      console.log("Inside try block");
-      console.log("Step 1");
-      // Step 1: Upload all images and get their URLs
+      // Step 1: Upload all images and get their URLs (outside the transaction)
       const imageUrls = await Promise.all(
-        values.containers.map(async (container, index) => {
+        values.containers.map(async (container) => {
           if (container.imageFile) {
             const file = container.imageFile;
             const filePath = `images/containers/${Date.now()}-${file.name}`;
@@ -148,10 +146,35 @@ export default function ReceiveStorePage() {
           return null;
         })
       );
-      console.log("Step 2");
-      // Step 2: Run Firestore transaction
+
+      // Step 2: Run Firestore transaction for all database writes
       await runTransaction(firestore, async (transaction) => {
-        // First, create all the new container documents
+        let bomDocRef;
+        let transactionalBomDoc: DocumentSnapshot<DocumentData> | null = null;
+
+        // --- PHASE 1: ALL READS ---
+        if (values.jobNumber) {
+          // Find the BOM document reference. This part is a read but it's outside the transaction, which is fine.
+          // We just need the reference to read it inside the transaction.
+          const bomsCollectionQuery = query(
+            collectionGroup(firestore, 'boms'),
+            where('jobNumber', '==', values.jobNumber)
+          );
+          const bomsSnapshot = await getDocs(bomsCollectionQuery);
+
+          if (!bomsSnapshot.empty) {
+            bomDocRef = bomsSnapshot.docs[0].ref;
+            // Now, read the document *inside* the transaction.
+            transactionalBomDoc = await transaction.get(bomDocRef);
+            if (!transactionalBomDoc.exists()) {
+              throw new Error(`BOM for job ${values.jobNumber} not found inside transaction!`);
+            }
+          }
+        }
+        
+        // --- PHASE 2: ALL WRITES ---
+
+        // Write 1: Create all the new container documents
         values.containers.forEach((container, index) => {
           const containerData: Omit<Container, 'id' | 'receiptDate'> = {
             jobNumber: values.jobNumber,
@@ -173,49 +196,29 @@ export default function ReceiveStorePage() {
           transaction.set(newContainerRef, newContainer);
         });
 
-        // If a job is associated, update the BOM quantities
-        if (values.jobNumber) {
-          const bomsQuery = query(
-            collectionGroup(firestore, 'boms'),
-            where('jobNumber', '==', values.jobNumber)
-          );
+        // Write 2: Update the BOM quantities if a job was associated and found
+        if (bomDocRef && transactionalBomDoc && transactionalBomDoc.exists()) {
+          const transactionalBomData = transactionalBomDoc.data() as Bom;
+
+          const allReceivedItems = values.containers.flatMap(c => c.items);
+          const itemQuantities: Record<string, number> = {};
+
+          allReceivedItems.forEach(item => {
+            itemQuantities[item.description] = (itemQuantities[item.description] || 0) + item.quantity;
+          });
           
-          const bomsSnapshot = await getDocs(bomsQuery);
-
-          if (!bomsSnapshot.empty) {
-            const bomDoc = bomsSnapshot.docs[0];
-            const bomRef = bomDoc.ref;
-            
-            // Get the current state of the BOM within the transaction
-            console.log("About to await transaction");
-            const transactionalBomDoc = await transaction.get(bomRef);
-            console.log("Transaction back");
-            if (!transactionalBomDoc.exists()) {
-              throw new Error(`BOM for job ${values.jobNumber} not found!`);
+          const updatedItems = transactionalBomData.items.map(bomItem => {
+            if (itemQuantities[bomItem.description]) {
+              return {
+                ...bomItem,
+                onHandQuantity: (bomItem.onHandQuantity || 0) + itemQuantities[bomItem.description],
+                lastUpdated: new Date().toISOString(),
+              };
             }
-            const transactionalBomData = transactionalBomDoc.data() as Bom;
-
-            const allReceivedItems = values.containers.flatMap(c => c.items);
-            const itemQuantities: Record<string, number> = {};
-
-            allReceivedItems.forEach(item => {
-              itemQuantities[item.description] = (itemQuantities[item.description] || 0) + item.quantity;
-            });
-            
-            const updatedItems = transactionalBomData.items.map(bomItem => {
-              if (itemQuantities[bomItem.description]) {
-                return {
-                  ...bomItem,
-                  onHandQuantity: (bomItem.onHandQuantity || 0) + itemQuantities[bomItem.description],
-                  lastUpdated: new Date().toISOString(),
-                };
-              }
-              console.log("returning bomItem");
-              return bomItem;
-            });
-            console.log("transaction update");
-            transaction.update(bomRef, { items: updatedItems });
-          }
+            return bomItem;
+          });
+          
+          transaction.update(bomDocRef, { items: updatedItems });
         }
       });
 
@@ -237,6 +240,7 @@ export default function ReceiveStorePage() {
         setIsSubmitting(false);
     }
   }
+
 
   async function generateQRCode(data: string) {
     try {
