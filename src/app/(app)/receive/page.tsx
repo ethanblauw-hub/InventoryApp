@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -114,62 +115,72 @@ export default function ReceiveStorePage() {
     setIsSubmitting(true);
     
     try {
-      // Use a single batched write to ensure atomicity
-      const batch = writeBatch(firestore);
-
-      for (const container of values.containers) {
-        const containerData: Omit<Container, 'id' | 'receiptDate'> = {
-          jobNumber: values.jobNumber,
-          jobName: values.jobName,
-          workCategoryId: values.workCategory,
-          containerType: container.type,
-          items: container.items,
-          shelfLocation: container.shelfLocation,
-          notes: container.notes,
-          imageUrl: container.imageUrl,
-        };
-        
-        // Create a new container document
-        const newContainerRef = doc(collection(firestore, 'containers'));
-        const newContainer: Container = {
-            ...containerData,
-            id: newContainerRef.id,
-            receiptDate: new Date().toISOString(),
-        };
-        batch.set(newContainerRef, newContainer);
+      await runTransaction(firestore, async (transaction) => {
+        // First, create all the new container documents
+        for (const container of values.containers) {
+          const containerData: Omit<Container, 'id' | 'receiptDate'> = {
+            jobNumber: values.jobNumber,
+            jobName: values.jobName,
+            workCategoryId: values.workCategory,
+            containerType: container.type,
+            items: container.items,
+            shelfLocation: container.shelfLocation,
+            notes: container.notes,
+            imageUrl: container.imageUrl,
+          };
+          
+          const newContainerRef = doc(collection(firestore, 'containers'));
+          const newContainer: Container = {
+              ...containerData,
+              id: newContainerRef.id,
+              receiptDate: new Date().toISOString(),
+          };
+          transaction.set(newContainerRef, newContainer);
+        }
 
         // If a job is associated, update the BOM quantities
-        if (containerData.jobNumber) {
-            const bomsQuery = query(
-                collectionGroup(firestore, 'boms'),
-                where('jobNumber', '==', containerData.jobNumber)
-            );
+        if (values.jobNumber) {
+          const bomsQuery = query(
+            collectionGroup(firestore, 'boms'),
+            where('jobNumber', '==', values.jobNumber)
+          );
+          
+          const bomsSnapshot = await getDocs(bomsQuery);
+
+          if (!bomsSnapshot.empty) {
+            const bomDoc = bomsSnapshot.docs[0];
+            const bomData = bomDoc.data() as Bom;
+            const bomRef = bomDoc.ref;
             
-            const bomsSnapshot = await getDocs(bomsQuery);
-
-            if (!bomsSnapshot.empty) {
-                const bomDoc = bomsSnapshot.docs[0];
-                const bomData = bomDoc.data() as Bom;
-                const bomRef = bomDoc.ref;
-
-                const updatedItems = bomData.items.map(bomItem => {
-                    const receivedItem = containerData.items.find(ci => ci.description === bomItem.description);
-                    if (receivedItem) {
-                        return {
-                            ...bomItem,
-                            onHandQuantity: (bomItem.onHandQuantity || 0) + receivedItem.quantity,
-                            lastUpdated: new Date().toISOString(),
-                        };
-                    }
-                    return bomItem;
-                });
-                
-                batch.update(bomRef, { items: updatedItems });
+            // Get the current state of the BOM within the transaction
+            const transactionalBomDoc = await transaction.get(bomRef);
+            if (!transactionalBomDoc.exists()) {
+              throw new Error(`BOM for job ${values.jobNumber} not found!`);
             }
-        }
-      }
+            const transactionalBomData = transactionalBomDoc.data() as Bom;
 
-      await batch.commit();
+            const allReceivedItems = values.containers.flatMap(c => c.items);
+            const itemQuantities: Record<string, number> = {};
+
+            allReceivedItems.forEach(item => {
+              itemQuantities[item.description] = (itemQuantities[item.description] || 0) + item.quantity;
+            });
+            
+            const updatedItems = transactionalBomData.items.map(bomItem => {
+              if (itemQuantities[bomItem.description]) {
+                return {
+                  ...bomItem,
+                  onHandQuantity: (bomItem.onHandQuantity || 0) + itemQuantities[bomItem.description],
+                  lastUpdated: new Date().toISOString(),
+                };
+              }
+              return bomItem;
+            });
+            
+            transaction.update(bomRef, { items: updatedItems });
+          }
+        }
+      });
 
       toast({
         title: "Success",
@@ -413,7 +424,7 @@ export default function ReceiveStorePage() {
                                 </FormControl>
                                 <SelectContent>
                                     {locations?.map(location => (
-                                    <SelectItem key={location.id} value={location.name}>{location.name}</SelectItem>
+                                    <SelectItem key={`${containerIndex}-${location.id}`} value={location.name}>{location.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                                 </Select>
