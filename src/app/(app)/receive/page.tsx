@@ -263,75 +263,72 @@ export default function ReceiveStorePage() {
               <CardTitle>Primary Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <FormField
-                control={form.control}
-                name="jobNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Job Number</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            className={cn(
-                              "w-full justify-between md:w-1/2",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {areBomsLoading
-                              ? "Loading jobs..."
-                              : field.value
-                              ? boms?.find(
-                                  (bom) => bom.jobNumber === field.value
-                                )?.jobName
-                              : "Select job by name or number"}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                        <Command>
-                          <CommandInput placeholder="Search job..." />
-                          <CommandEmpty>No job found.</CommandEmpty>
-                          <CommandList>
-                            {boms?.map((bom) => (
-                              <CommandItem
-                                value={`${bom.jobName} ${bom.jobNumber}`}
-                                key={bom.id}
-                                onSelect={() => {
-                                  form.setValue("jobNumber", bom.jobNumber);
-                                  form.setValue("jobName", bom.jobName);
-                                  form.setValue("workCategory", bom.workCategoryId);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    bom.jobNumber === field.value
-                                      ? "opacity-100"
-                                      : "opacity-0"
-                                  )}
-                                />
-                                <div>
-                                    <p>{bom.jobName}</p>
-                                    <p className="text-sm text-muted-foreground">{bom.jobNumber}</p>
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                    <FormDescription>
-                      Search by job name or number. Selecting a job auto-fills the category and item list.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="jobNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Job Number</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "w-full justify-between",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {areBomsLoading
+                                ? "Loading jobs..."
+                                : field.value
+                                ? boms?.find(
+                                    (bom) => bom.jobNumber === field.value
+                                  )?.jobName
+                                : "Select job by name or number"}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            <CommandInput placeholder="Search job..." />
+                            <CommandEmpty>No job found.</CommandEmpty>
+                            <CommandList>
+                              {boms?.map((bom) => (
+                                <CommandItem
+                                  value={`${bom.jobName} ${bom.jobNumber}`}
+                                  key={bom.id}
+                                  onSelect={() => {
+                                    form.setValue("jobNumber", bom.jobNumber);
+                                    form.setValue("jobName", bom.jobName);
+                                    form.setValue("workCategory", bom.workCategoryId);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      bom.jobNumber === field.value
+                                        ? "opacity-100"
+                                        : "opacity-0"
+                                    )}
+                                  />
+                                  <div>
+                                      <p>{bom.jobName}</p>
+                                      <p className="text-sm text-muted-foreground">{bom.jobNumber}</p>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="workCategory"
@@ -354,9 +351,10 @@ export default function ReceiveStorePage() {
                     </FormItem>
                   )}
                 />
-                 {/* This empty div acts as a placeholder to keep the grid structure consistent */}
-                <div></div>
               </div>
+              <FormDescription>
+                Search by job name or number. Selecting a job auto-fills the category and item list.
+              </FormDescription>
             </CardContent>
           </Card>
 
