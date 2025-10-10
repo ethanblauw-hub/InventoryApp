@@ -283,7 +283,7 @@ export default function ReceiveStorePage() {
               <CardTitle>Primary Information</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
                   name="jobNumber"
@@ -349,31 +349,29 @@ export default function ReceiveStorePage() {
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="workCategory"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Work Category</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} disabled={!!selectedJobNumber}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder={areCategoriesLoading ? "Loading..." : "Select a category"} />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {categories?.map(cat => (
-                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div></div>
-                </div>
+                
+                <FormField
+                  control={form.control}
+                  name="workCategory"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Work Category</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={!!selectedJobNumber}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder={areCategoriesLoading ? "Loading..." : "Select a category"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {categories?.map(cat => (
+                              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
               <FormDescription className="mt-4">
                   Selecting a job auto-fills the category and makes job-specific items available in the dropdown.
@@ -568,6 +566,7 @@ function ItemArray({ containerIndex, control, jobItems }: ItemArrayProps) {
         <p className="text-sm font-medium text-destructive">{containerErrors.items.message}</p>
       )}
 
+      {/* Item Header Row */}
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] sm:gap-2">
           <Label>Description/Part Number</Label>
           <Label className="w-24 text-right">Quantity</Label>
@@ -762,3 +761,4 @@ function ImageUploadField({ control, containerIndex }: { control: Control<Receiv
     />
   );
 }
+
