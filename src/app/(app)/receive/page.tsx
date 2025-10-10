@@ -350,6 +350,7 @@ export default function ReceiveStorePage() {
                             ))}
                           </SelectContent>
                         </Select>
+                      <FormDescription>&nbsp;</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
