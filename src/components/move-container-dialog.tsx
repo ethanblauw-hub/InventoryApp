@@ -15,12 +15,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFirestore } from "@/firebase";
 import { Container, Location } from "@/lib/data";
-import { Edit } from "lucide-react";
+import { Edit, Check, ChevronsUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { doc, updateDoc } from "firebase/firestore";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "./ui/command";
+import { cn } from "@/lib/utils";
 
 type MoveContainerDialogProps = {
   container: Container;
@@ -29,6 +31,7 @@ type MoveContainerDialogProps = {
 
 export function MoveContainerDialog({ container, allLocations }: MoveContainerDialogProps) {
   const [open, setOpen] = useState(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const [newLocation, setNewLocation] = useState("");
   const [isMoving, setIsMoving] = useState(false);
   const firestore = useFirestore();
@@ -55,6 +58,7 @@ export function MoveContainerDialog({ container, allLocations }: MoveContainerDi
         title: "Container Moved",
         description: `Container has been moved to ${newLocation}.`,
       });
+      setNewLocation("");
       setOpen(false);
 
     } catch (error: any) {
@@ -97,18 +101,47 @@ export function MoveContainerDialog({ container, allLocations }: MoveContainerDi
             <Label htmlFor="to-location" className="text-right">
               To Shelf
             </Label>
-            <Select onValueChange={setNewLocation}>
-              <SelectTrigger id="to-location" className="col-span-3">
-                <SelectValue placeholder="Select a new location" />
-              </SelectTrigger>
-              <SelectContent>
-                {allLocations.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.name}>
-                    {loc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={popoverOpen}
+                        className="col-span-3 justify-between font-normal"
+                    >
+                        {newLocation
+                            ? allLocations.find((loc) => loc.name === newLocation)?.name
+                            : "Select a new location..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command>
+                        <CommandInput placeholder="Search location..." />
+                        <CommandList>
+                            <CommandEmpty>No location found.</CommandEmpty>
+                            {allLocations.map((loc) => (
+                                <CommandItem
+                                    key={loc.id}
+                                    value={loc.name}
+                                    onSelect={(currentValue) => {
+                                        setNewLocation(currentValue === newLocation ? "" : currentValue);
+                                        setPopoverOpen(false);
+                                    }}
+                                >
+                                    <Check
+                                        className={cn(
+                                            "mr-2 h-4 w-4",
+                                            newLocation === loc.name ? "opacity-100" : "opacity-0"
+                                        )}
+                                    />
+                                    {loc.name}
+                                </CommandItem>
+                            ))}
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
           </div>
         </div>
         <DialogFooter>
