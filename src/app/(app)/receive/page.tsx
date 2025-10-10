@@ -86,6 +86,16 @@ export default function ReceiveStorePage() {
   );
   const { data: locations, isLoading: areLocationsLoading } = useCollection<Location>(locationsQuery);
 
+  const uniqueLocations = useMemo(() => {
+    if (!locations) return [];
+    const seen = new Set<string>();
+    return locations.filter(location => {
+      const isDuplicate = seen.has(location.name);
+      seen.add(location.name);
+      return !isDuplicate;
+    });
+  }, [locations]);
+
 
   const form = useForm<ReceiveFormValues>({
     resolver: zodResolver(formSchema),
@@ -423,7 +433,7 @@ export default function ReceiveStorePage() {
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    {locations?.map(location => (
+                                    {uniqueLocations.map(location => (
                                     <SelectItem key={`${containerIndex}-${location.id}`} value={location.name}>{location.name}</SelectItem>
                                     ))}
                                 </SelectContent>
