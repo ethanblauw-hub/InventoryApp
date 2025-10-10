@@ -352,7 +352,7 @@ export default function ReceiveStorePage() {
                   )}
                 />
               </div>
-              <FormDescription className="mt-2">
+              <FormDescription className="mt-4">
                   Search by job name or number. Selecting a job auto-fills the category and item list.
               </FormDescription>
             </CardContent>
@@ -548,17 +548,28 @@ function ItemArray({ containerIndex, control, jobItems }: ItemArrayProps) {
         <p className="text-sm font-medium text-destructive">{containerErrors.items.message}</p>
       )}
 
-      {fields.map((item, itemIndex) => (
-        <ItemRow
-          key={item.id}
-          containerIndex={containerIndex}
-          itemIndex={itemIndex}
-          control={control}
-          jobItems={jobItems}
-          onRemove={remove}
-          showRemoveButton={fields.length > 1}
-        />
-      ))}
+      {/* Item Header Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] sm:gap-2">
+          <Label htmlFor={`containers.${containerIndex}.items.0.description`}>Description/Part Number</Label>
+          <Label htmlFor={`containers.${containerIndex}.items.0.quantity`} className="w-24 text-right">Quantity</Label>
+          <div className="flex justify-end">
+            <span className="sr-only">Remove</span>
+          </div>
+      </div>
+
+      <div className="space-y-2">
+        {fields.map((item, itemIndex) => (
+            <ItemRow
+            key={item.id}
+            containerIndex={containerIndex}
+            itemIndex={itemIndex}
+            control={control}
+            jobItems={jobItems}
+            onRemove={remove}
+            showRemoveButton={fields.length > 1}
+            />
+        ))}
+      </div>
     </div>
   );
 }
@@ -582,8 +593,7 @@ function ItemRow({ containerIndex, itemIndex, control, jobItems, onRemove, showR
         control={control}
         name={`containers.${containerIndex}.items.${itemIndex}.description`}
         render={({ field }) => (
-          <FormItem className="flex flex-col">
-            <FormLabel className={cn(itemIndex !== 0 && "sr-only")}>Description/Part Number</FormLabel>
+          <FormItem>
             <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
               <PopoverTrigger asChild>
                 <FormControl>
@@ -641,7 +651,6 @@ function ItemRow({ containerIndex, itemIndex, control, jobItems, onRemove, showR
         name={`containers.${containerIndex}.items.${itemIndex}.quantity`}
         render={({ field }) => (
           <FormItem>
-            <FormLabel className={cn(itemIndex !== 0 && "sr-only")}>Quantity</FormLabel>
             <FormControl>
               <Input type="number" placeholder="1" {...field} className="w-24 text-right" />
             </FormControl>
@@ -649,7 +658,7 @@ function ItemRow({ containerIndex, itemIndex, control, jobItems, onRemove, showR
           </FormItem>
         )}
       />
-      <div className={cn("flex items-end h-full", itemIndex !== 0 && "sm:pt-8")}>
+      <div className="flex items-end h-full">
          {showRemoveButton && (
             <Button
                 type="button"
