@@ -1,4 +1,5 @@
 
+
 /**
  * Represents a single item in the inventory.
  * @property {string} id - Unique identifier for the inventory item.
@@ -84,6 +85,26 @@ export type Category = {
   name: string;
   description: string;
 };
+
+/**
+ * Represents a physical container holding items for a job.
+ */
+export type Container = {
+  id: string;
+  jobNumber?: string;
+  jobName?: string;
+  workCategoryId?: string;
+  containerType: string;
+  shelfLocation?: string;
+  receiptDate: string;
+  items: {
+    description: string;
+    quantity: number;
+  }[];
+  notes?: string;
+  imageUrl?: string;
+};
+
 
 // Mock data for inventory items.
 export const items: Item[] = [

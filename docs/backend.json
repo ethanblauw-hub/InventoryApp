@@ -218,6 +218,72 @@
         "id",
         "name"
       ]
+    },
+    "Container": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Container",
+      "type": "object",
+      "description": "Represents a physical container (e.g., pallet, cart) holding items for a job.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the container."
+        },
+        "jobNumber": {
+          "type": "string",
+          "description": "Associated job number."
+        },
+        "jobName": {
+          "type": "string",
+          "description": "Associated job name for easier display."
+        },
+        "workCategoryId": {
+          "type": "string",
+          "description": "Reference to the work category."
+        },
+        "containerType": {
+          "type": "string",
+          "description": "Type of container (e.g., Pallet, Cart, Box)."
+        },
+        "shelfLocation": {
+          "type": "string",
+          "description": "Current shelf location of the container."
+        },
+        "receiptDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO date string for when the container was received."
+        },
+        "items": {
+          "type": "array",
+          "description": "An array of items within the container.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string"
+              },
+              "quantity": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes about the container."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL for an image of the container."
+        }
+      },
+      "required": [
+        "id",
+        "containerType",
+        "receiptDate",
+        "items"
+      ]
     }
   },
   "auth": {
@@ -307,6 +373,22 @@
             {
               "name": "shelfLocationId",
               "description": "The unique identifier for the shelf location."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/containers/{containerId}",
+        "definition": {
+          "entityName": "Container",
+          "schema": {
+            "$ref": "#/backend/entities/Container"
+          },
+          "description": "Stores documents for each physical container.",
+          "params": [
+            {
+              "name": "containerId",
+              "description": "The unique identifier for the container."
             }
           ]
         }

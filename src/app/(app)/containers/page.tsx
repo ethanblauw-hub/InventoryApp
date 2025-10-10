@@ -21,28 +21,9 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-
-// Mock data for a list of containers
-const containers = [
-  {
-    id: 'cont-123',
-    jobNumber: 'J1234',
-    jobName: 'Job 1234 - Phase 1',
-    workCategory: 'Lighting',
-    containerType: 'Pallet',
-    shelfLocation: 'Aisle A, Shelf 1',
-    itemCount: 2,
-  },
-  {
-    id: 'cont-456',
-    jobNumber: 'J5678',
-    jobName: 'Job 5678 - Initial',
-    workCategory: 'Gear',
-    containerType: 'Cart',
-    shelfLocation: 'Receiving Dock',
-    itemCount: 5,
-  },
-];
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query } from 'firebase/firestore';
+import { Container, Category } from '@/lib/data';
 
 /**
  * A page component that displays a list of all containers in the shop.
@@ -50,13 +31,23 @@ const containers = [
  * category, type, and location. Users can click on a container to navigate to its
  * detailed view or receive a new container.
  *
- * Note: This component currently uses mock data. In a real application,
- * it would fetch data from a database or API.
- *
  * @returns {JSX.Element} The rendered containers list page.
  */
 export default function ContainersPage() {
   const router = useRouter();
+  const firestore = useFirestore();
+
+  const containersQuery = useMemoFirebase(
+    () => (firestore ? query(collection(firestore, 'containers')) : null),
+    [firestore]
+  );
+  const { data: containers, isLoading: areContainersLoading } = useCollection<Container>(containersQuery);
+
+  const categoriesQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'workCategories') : null),
+    [firestore]
+  );
+  const { data: categories, isLoading: areCategoriesLoading } = useCollection<Category>(categoriesQuery);
 
   /**
    * Handles the click event on a table row.
@@ -66,6 +57,8 @@ export default function ContainersPage() {
   const handleRowClick = (containerId: string) => {
     router.push(`/containers/${containerId}`);
   };
+
+  const isLoading = areContainersLoading || areCategoriesLoading;
 
   return (
     <div className="space-y-6">
@@ -99,22 +92,35 @@ export default function ContainersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {containers.map((container) => (
-                  <TableRow 
-                    key={container.id} 
-                    onClick={() => handleRowClick(container.id)}
-                    className="cursor-pointer"
-                  >
-                    <TableCell className="font-mono">{container.id}</TableCell>
-                    <TableCell className="font-medium">{container.jobName} ({container.jobNumber})</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{container.workCategory}</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{container.containerType}</TableCell>
-                    <TableCell className="text-muted-foreground">{container.shelfLocation}</TableCell>
-                    <TableCell className="text-right font-mono">{container.itemCount}</TableCell>
+                {isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center">Loading containers...</TableCell>
                   </TableRow>
-                ))}
+                )}
+                {!isLoading && containers?.map((container) => {
+                  const category = categories?.find(c => c.id === container.workCategoryId);
+                  return (
+                    <TableRow 
+                      key={container.id} 
+                      onClick={() => handleRowClick(container.id)}
+                      className="cursor-pointer"
+                    >
+                      <TableCell className="font-mono">{container.id}</TableCell>
+                      <TableCell className="font-medium">{container.jobName} ({container.jobNumber})</TableCell>
+                      <TableCell>
+                        {category && <Badge variant="secondary">{category.name}</Badge>}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{container.containerType}</TableCell>
+                      <TableCell className="text-muted-foreground">{container.shelfLocation}</TableCell>
+                      <TableCell className="text-right font-mono">{container.items?.length || 0}</TableCell>
+                    </TableRow>
+                  )
+                })}
+                {!isLoading && (!containers || containers.length === 0) && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center">No containers found. Try receiving one.</TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
