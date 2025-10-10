@@ -79,20 +79,20 @@ export function BomImportDialog() {
       jobName: firstRow["Job Name"] || "N/A",
       projectManager: firstRow["PM"] || "N/A",
       primaryFieldLeader: firstRow["Primary Field Leader"] || "N/A",
-      workCategoryId: firstRow["Category"] || "cat-3",
+      workCategoryId: firstRow["Category"] || "cat-3", // Default category
     };
 
     // Map ALL rows to items, but only take description and quantity
-    const bomItems = parsedRows.map(row => ({
-      description: row["Description/Part Number"] || row["Part Number"] || "Unknown Item",
-      quantity: parseInt(row["Quantity"], 10) || 0,
-    }))
-    .filter(item => item.description !== "Unknown Item" && item.quantity > 0)
-    .map(item => ({
-      description: item.description,
-      orderBomQuantity: bomType === 'order' ? item.quantity : 0,
-      designBomQuantity: bomType === 'design' ? item.quantity : 0,
-    }));
+    const bomItems = parsedRows.map(row => {
+      const description = row["Description/Part Number"] || row["Part Number"] || "Unknown Item";
+      const quantity = parseInt(row["Quantity"], 10) || 0;
+      
+      return {
+        description: description,
+        orderBomQuantity: bomType === 'order' ? quantity : 0,
+        designBomQuantity: bomType === 'design' ? quantity : 0,
+      };
+    }).filter(item => item.description !== "Unknown Item" && (item.orderBomQuantity > 0 || item.designBomQuantity > 0));
     
 
     if (bomItems.length === 0) {
@@ -322,5 +322,3 @@ export function BomImportDialog() {
     </>
   )
 }
-
-    
