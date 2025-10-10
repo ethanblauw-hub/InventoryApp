@@ -62,50 +62,77 @@ export function BomImportDialog() {
     }
   };
 
-  const processAndShowConfirm = (parsedRows: any[]) => {
-    if (!parsedRows || parsedRows.length === 0) {
+  const processAndShowConfirm = (data: (string | number)[][]) => {
+     if (!data || data.length < 3) {
       toast({
         variant: "destructive",
-        title: "Parsing Error",
-        description: "The file is empty or could not be read.",
+        title: "Invalid File Format",
+        description: "The file must contain a job info section, a blank line, and an item section.",
       });
       return;
     }
-    
-    // Read Job Info ONLY from the first row
-    const firstRow = parsedRows[0];
-    const jobInfo = {
-      jobNumber: firstRow["Job Number"] || "N/A",
-      jobName: firstRow["Job Name"] || "N/A",
-      projectManager: firstRow["PM"] || "N/A",
-      primaryFieldLeader: firstRow["Primary Field Leader"] || "N/A",
-      workCategoryId: firstRow["Category"] || "cat-3", // Default category
-    };
 
-    // Map ALL rows to items, but only take description and quantity
-    const bomItems = parsedRows.map(row => {
-      const description = row["Description/Part Number"] || row["Part Number"] || "Unknown Item";
-      const quantity = parseInt(row["Quantity"], 10) || 0;
+    try {
+      const blankRowIndex = data.findIndex(row => row.every(cell => cell === null || cell === ''));
       
-      return {
-        description: description,
-        orderBomQuantity: bomType === 'order' ? quantity : 0,
-        designBomQuantity: bomType === 'design' ? quantity : 0,
+      if (blankRowIndex === -1) {
+        throw new Error("Could not find a blank line separator between job info and item list.");
+      }
+
+      // --- PARSE JOB INFO ---
+      const jobInfoRows = data.slice(0, blankRowIndex);
+      const jobInfoHeader = jobInfoRows[0].map(h => h.toString());
+      const jobInfoData = jobInfoRows[1];
+      
+      const getColumnValue = (colName: string) => {
+        const index = jobInfoHeader.indexOf(colName);
+        return index !== -1 ? jobInfoData[index]?.toString() : undefined;
       };
-    }).filter(item => item.description !== "Unknown Item" && (item.orderBomQuantity > 0 || item.designBomQuantity > 0));
-    
 
-    if (bomItems.length === 0) {
-        toast({
-            variant: "destructive",
-            title: "No Items Found",
-            description: "No items with valid descriptions and quantities were found in the file."
-        });
-        return;
+      const jobInfo = {
+        jobNumber: getColumnValue("Job Number") || "N/A",
+        jobName: getColumnValue("Job Name") || "N/A",
+        projectManager: getColumnValue("PM") || "N/A",
+        primaryFieldLeader: getColumnValue("Primary Field Leader") || "N/A",
+        workCategoryId: getColumnValue("Category") || "cat-general", // Default category
+      };
+      
+      // --- PARSE ITEM LIST ---
+      const itemRows = data.slice(blankRowIndex + 1);
+      const itemHeader = itemRows[0].map(h => h.toString());
+      const itemDataRows = itemRows.slice(1);
+      
+      const partNumberIndex = itemHeader.indexOf("Part Number");
+      const quantityIndex = itemHeader.indexOf("Quantity");
+
+      if (partNumberIndex === -1 || quantityIndex === -1) {
+        throw new Error("Item list must contain 'Part Number' and 'Quantity' headers.");
+      }
+      
+      const bomItems = itemDataRows.map(row => {
+        const description = row[partNumberIndex]?.toString() || "Unknown Item";
+        const quantity = parseInt(row[quantityIndex]?.toString() || '0', 10);
+        
+        return {
+          description: description,
+          orderBomQuantity: bomType === 'order' ? quantity : 0,
+          designBomQuantity: bomType === 'design' ? quantity : 0,
+        };
+      }).filter(item => item.description !== "Unknown Item" && (item.orderBomQuantity > 0 || item.designBomQuantity > 0));
+
+      if (bomItems.length === 0) {
+        throw new Error("No valid items found in the item list section of the file.");
+      }
+
+      setParsedBom({ jobInfo, items: bomItems });
+      setIsConfirmOpen(true);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Parsing Error",
+        description: error.message || "Could not parse the file. Please check the format.",
+      });
     }
-
-    setParsedBom({ jobInfo, items: bomItems });
-    setIsConfirmOpen(true);
   };
 
   const handleFinalSubmit = async () => {
@@ -118,33 +145,16 @@ export function BomImportDialog() {
     const now = new Date().toISOString();
 
     try {
-      // Create a batch
       const batch = writeBatch(firestore);
-
-      // 1. Reference and set the job document
       const jobDocRef = doc(firestore, 'jobs', jobInfo.jobNumber);
-      const cleanJobData = { 
-        id: jobInfo.jobNumber,
-        name: jobInfo.jobName || `Job ${jobInfo.jobNumber}`,
-        description: `Job ${jobInfo.jobName}`,
-      };
-      batch.set(jobDocRef, cleanJobData, { merge: true });
+      batch.set(jobDocRef, { id: jobInfo.jobNumber, name: jobInfo.jobName, description: `Job ${jobInfo.jobName}` }, { merge: true });
 
-      // 2. Reference and set the BOM document in the subcollection
       const bomColRef = collection(jobDocRef, 'boms');
-      const bomDocRef = doc(bomColRef); 
-
-      const cleanJobInfo = {
-        jobNumber: jobInfo.jobNumber || 'N/A',
-        jobName: jobInfo.jobName || 'Unknown Job',
-        projectManager: jobInfo.projectManager || 'N/A',
-        primaryFieldLeader: jobInfo.primaryFieldLeader || 'N/A',
-        workCategoryId: jobInfo.workCategoryId || 'cat-general',
-      };
+      const bomDocRef = doc(bomColRef);
 
       const newBomDocument = {
         id: bomDocRef.id,
-        ...cleanJobInfo,
+        ...jobInfo,
         items: items.map(item => ({
           ...item,
           id: `item-${Math.random().toString(36).substr(2, 9)}`,
@@ -159,18 +169,13 @@ export function BomImportDialog() {
       };
 
       batch.set(bomDocRef, newBomDocument);
-      
-      // 3. Commit the batch
       await batch.commit();
       
-      // On success, show toast and reset form
       toast({
         title: "BOM Imported Successfully",
         description: `BOM for job ${jobInfo.jobName} has been created.`,
       });
-      setParsedBom(null);
-      setFile(null);
-
+      resetState();
     } catch (error: any) {
        console.error("Error writing document batch: ", error);
        toast({
@@ -179,11 +184,19 @@ export function BomImportDialog() {
          description: `Failed to save the BOM: ${error.message}`,
        });
     } finally {
-        // This runs whether the try succeeded or failed
         setIsConfirmOpen(false);
         setOpen(false);
     }
   };
+
+  const resetState = () => {
+    setFile(null);
+    setParsedBom(null);
+    setIsConfirmOpen(false);
+    // Consider also resetting the input field value if it's uncontrolled
+    const fileInput = document.getElementById("bom-file") as HTMLInputElement;
+    if(fileInput) fileInput.value = "";
+  }
 
   const handleImport = () => {
     if (!file) {
@@ -197,28 +210,21 @@ export function BomImportDialog() {
     reader.onload = (e) => {
       const data = e.target?.result;
       try {
-        let parsedRows: any[] = [];
+        let sheetData: (string | number)[][] = [];
         if (fileExtension === 'csv' && typeof data === 'string') {
-          Papa.parse(data, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-              processAndShowConfirm(results.data);
-            },
-            error: (error: any) => {
-              toast({ variant: "destructive", title: "CSV Parsing Failed", description: error.message });
-            },
+          const parsed = Papa.parse<(string | number)[]>(data, {
+            skipEmptyLines: false, // Keep blank lines as they are separators
           });
-          return; 
+          sheetData = parsed.data;
         } else if ((fileExtension === 'xlsx' || fileExtension === 'xls') && data instanceof ArrayBuffer) {
             const workbook = XLSX.read(data, { type: 'array' });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
-            parsedRows = XLSX.utils.sheet_to_json(worksheet);
+            sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: true });
         } else {
            throw new Error("Unsupported file type. Please use .csv, .xls, or .xlsx.");
         }
-        processAndShowConfirm(parsedRows);
+        processAndShowConfirm(sheetData);
       } catch (error: any) {
         console.error("Error parsing file:", error);
         toast({
@@ -244,7 +250,7 @@ export function BomImportDialog() {
 
   return (
     <>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) resetState(); }}>
         <DialogTrigger asChild>
           <Button>
             <Upload className="mr-2" />
@@ -322,3 +328,5 @@ export function BomImportDialog() {
     </>
   )
 }
+
+    
