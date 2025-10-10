@@ -136,9 +136,9 @@ export default function ReceiveStorePage() {
       return;
     }
     setIsSubmitting(true);
-    const storage = getStorage(firebaseApp);
     
     try {
+      const storage = getStorage(firebaseApp);
       const imageUrls = await Promise.all(
         values.containers.map(async (container) => {
           if (container.imageFile) {
@@ -156,11 +156,13 @@ export default function ReceiveStorePage() {
         let bomDocRef;
         let transactionalBomDoc: DocumentSnapshot<DocumentData> | null = null;
 
+        // --- READS FIRST ---
         if (values.jobNumber) {
           const bomsCollectionQuery = query(
             collectionGroup(firestore, 'boms'),
             where('jobNumber', '==', values.jobNumber)
           );
+          // This read must happen before any writes in the transaction.
           const bomsSnapshot = await getDocs(bomsCollectionQuery);
 
           if (!bomsSnapshot.empty) {
@@ -171,7 +173,8 @@ export default function ReceiveStorePage() {
             }
           }
         }
-        
+
+        // --- WRITES SECOND ---
         values.containers.forEach((container, index) => {
           const containerData: Omit<Container, 'id' | 'receiptDate'> = {
             jobNumber: values.jobNumber,
@@ -195,10 +198,8 @@ export default function ReceiveStorePage() {
 
         if (bomDocRef && transactionalBomDoc && transactionalBomDoc.exists()) {
           const transactionalBomData = transactionalBomDoc.data() as Bom;
-
           const allReceivedItems = values.containers.flatMap(c => c.items);
           const itemQuantities: Record<string, number> = {};
-
           allReceivedItems.forEach(item => {
             itemQuantities[item.description] = (itemQuantities[item.description] || 0) + item.quantity;
           });
@@ -768,20 +769,31 @@ type ShelfLocationSelectorProps = {
 };
 
 function ShelfLocationSelector({ control, containerIndex, allAvailableShelves, watchedContainers, isLoading }: ShelfLocationSelectorProps) {
-  // Get shelves selected by OTHER containers in the form
-  const selectedByOthers = useMemo(() => {
-    return new Set(
+  const { getValues } = useFormContext<ReceiveFormValues>();
+  const currentSelection = getValues(`containers.${containerIndex}.shelfLocation`);
+
+  const selectableShelves = useMemo(() => {
+    // Get shelves selected by OTHER containers in the form
+    const selectedByOthers = new Set(
       watchedContainers
         .filter((_, index) => index !== containerIndex)
         .map(c => c.shelfLocation)
         .filter((loc): loc is string => !!loc)
     );
-  }, [watchedContainers, containerIndex]);
 
-  // Filter available shelves by removing ones selected by other containers
-  const selectableShelves = useMemo(() => {
-    return allAvailableShelves.filter(loc => !selectedByOthers.has(loc.name));
-  }, [allAvailableShelves, selectedByOthers]);
+    // Filter available shelves by removing ones selected by other containers
+    let filtered = allAvailableShelves.filter(loc => !selectedByOthers.has(loc.name));
+
+    // If the current container has a selection that is NOT in the filtered list
+    // (e.g., it was an occupied shelf), add it to the list so it can be displayed.
+    if (currentSelection && !filtered.some(loc => loc.name === currentSelection)) {
+      const currentShelfObject = allAvailableShelves.find(loc => loc.name === currentSelection) || { id: currentSelection, name: currentSelection, items: [] };
+      filtered = [currentShelfObject, ...filtered];
+    }
+    
+    return filtered;
+
+  }, [allAvailableShelves, watchedContainers, containerIndex, currentSelection]);
 
   return (
     <FormField
@@ -797,11 +809,6 @@ function ShelfLocationSelector({ control, containerIndex, allAvailableShelves, w
               </SelectTrigger>
             </FormControl>
             <SelectContent>
-              {field.value && !selectableShelves.some(s => s.name === field.value) && (
-                <SelectItem key={`${containerIndex}-${field.value}`} value={field.value}>
-                  {field.value}
-                </SelectItem>
-              )}
               {selectableShelves.map(location => (
                 <SelectItem key={`${containerIndex}-${location.id}`} value={location.name}>
                   {location.name}
@@ -821,3 +828,5 @@ function ShelfLocationSelector({ control, containerIndex, allAvailableShelves, w
     />
   );
 }
+
+    
