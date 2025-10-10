@@ -542,7 +542,7 @@ function ItemArray({ containerIndex, control, jobItems }: ItemArrayProps) {
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => append({ description: '', quantity: 1 })}
+          onClick={() => append({ description: '', quantity: 1 }, { shouldFocus: false })}
         >
           <PlusCircle className="mr-2 h-4 w-4" />
           Add Item
