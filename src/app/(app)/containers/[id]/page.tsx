@@ -1,14 +1,13 @@
 
 'use client';
 
-import { use } from 'react';
+import { use, useEffect } from 'react';
 import { PageHeader } from '@/components/page-header';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from '@/components/ui/card';
 import {
   Table,
@@ -23,107 +22,75 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2, FileText, PlusCircle, Ship, History } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { boms } from '@/lib/data';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
+import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { doc, collection } from 'firebase/firestore';
+import { Container, Category, Bom } from '@/lib/data';
 
-
-// Mock data for a list of containers
-const allContainers = [
-    {
-      id: 'cont-123',
-      jobNumber: 'J1234',
-      jobName: 'Job 1234 - Phase 1',
-      departmentName: null,
-      receiptDate: '2023-11-20',
-      workCategory: 'Lighting',
-      containerType: 'Pallet',
-      shelfLocation: 'Aisle A, Shelf 1',
-      imageUrl: 'https://picsum.photos/seed/cont-123/600/400',
-      hasBOM: true,
-      items: [
-        { id: 'item-1', description: 'STL-BM-24', quantity: 10 },
-        { id: 'item-2', description: 'GUS-PLT-LG', quantity: 25 },
-      ],
-      changeLog: [
-        { date: '2023-11-20', event: 'Container received and stored at Aisle A, Shelf 1 by Alice.' },
-        { date: '2023-11-21', event: 'Item GUS-PLT-LG (10 units) added by Bob.' },
-      ],
-    },
-    {
-        id: 'cont-456',
-        jobNumber: 'J5678',
-        jobName: 'Job 5678 - Initial',
-        departmentName: null,
-        receiptDate: '2023-11-18',
-        workCategory: 'Gear',
-        containerType: 'Cart',
-        shelfLocation: 'Receiving Dock',
-        imageUrl: 'https://picsum.photos/seed/cont-456/600/400',
-        hasBOM: true,
-        items: [
-            { id: 'item-3', description: 'Safety Harness', quantity: 5 },
-            { id: 'item-4', description: 'Hard Hat', quantity: 5 },
-            { id: 'item-5', description: 'Welding Gloves', quantity: 10 },
-        ],
-        changeLog: [
-            { date: '2023-11-18', event: 'Container received at Receiving Dock by Charlie.' },
-        ],
-    },
-];
-
-
-/**
- * Props for the ContainerDetailsPage component.
- * @property {object} params - The route parameters.
- * @property {string} params.id - The ID of the container to display.
- */
-type ContainerDetailsPageProps = {
-  params: Promise<{ id: string }>;
-};
 
 /**
  * A page component that displays the detailed information for a single container.
  * It shows the container's metadata, its contents, its location in the shop,
  * and provides actions for managing the container.
  *
- * Note: This component currently uses mock data. In a real application,
- * it would fetch data based on the `params.id`.
- *
- * @param {ContainerDetailsPageProps} props - The props for the component.
  * @returns {JSX.Element} The rendered container details page.
  */
-export default function ContainerDetailsPage(props: ContainerDetailsPageProps) {
-  // In a real app, you'd use params.id to fetch container data
-  const { id } = use(props.params);
-  const container = allContainers.find(c => c.id === id);
+export default function ContainerDetailsPage() {
+  const params = useParams();
+  const id = params.id as string;
+  const firestore = useFirestore();
 
-  if (!container) {
-    notFound();
+  const containerRef = useMemoFirebase(
+    () => (firestore && id ? doc(firestore, 'containers', id) : null),
+    [firestore, id]
+  );
+  const { data: container, isLoading: isContainerLoading, error } = useDoc<Container>(containerRef);
+  
+  const categoriesQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'workCategories') : null),
+    [firestore]
+  );
+  const { data: categories, isLoading: areCategoriesLoading } = useCollection<Category>(categoriesQuery);
+
+  useEffect(() => {
+    if (!isContainerLoading && !container) {
+      notFound();
+    }
+  }, [isContainerLoading, container]);
+
+  if (isContainerLoading || areCategoriesLoading) {
+    return <div>Loading container details...</div>;
   }
   
-  // Find the corresponding BOM based on the job name
-  const relatedBom = boms.find(bom => bom.jobName === container.jobName);
-  const bomId = relatedBom ? relatedBom.id.replace('bom-', '') : null;
+  if (error) {
+     return <div>Error loading container. It may have been deleted or you may not have access.</div>
+  }
+
+  if (!container) {
+    return null; // or a not found component
+  }
+
+  const workCategory = categories?.find(cat => cat.id === container.workCategoryId);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Container #${container.id}`}
+        title={`Container #${container.id.substring(0,7)}...`}
         description={container.jobName || "No Description"}
       >
         <div className="flex flex-wrap gap-2">
-            {bomId && (
+            {container.jobNumber && (
               <Button variant="outline" asChild>
-                <Link href={`/boms/${bomId}`}>
-                  <FileText className="mr-2 h-4 w-4" /> Open BOM
+                <Link href={`/boms?search=${container.jobNumber}`}>
+                  <FileText className="mr-2 h-4 w-4" /> Open Related BOMs
                 </Link>
               </Button>
             )}
-            {bomId && (
+            {container.jobNumber && (
                <Button asChild>
-                <Link href={`/boms/${bomId}?action=add&containerId=${container.id}`}>
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+                <Link href={`/receive?job=${container.jobNumber}`}>
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Item to Job
                 </Link>
               </Button>
             )}
@@ -146,11 +113,11 @@ export default function ContainerDetailsPage(props: ContainerDetailsPageProps) {
                         </div>
                          <div>
                             <p className="text-sm font-medium text-muted-foreground">Original Receipt Date</p>
-                            <p>{container.receiptDate}</p>
+                            <p>{new Date(container.receiptDate).toLocaleDateString()}</p>
                         </div>
                         <div>
                             <p className="text-sm font-medium text-muted-foreground">Work Category</p>
-                            <p><Badge variant="secondary">{container.workCategory}</Badge></p>
+                            <p>{workCategory ? <Badge variant="secondary">{workCategory.name}</Badge> : 'N/A'}</p>
                         </div>
                          <div>
                             <p className="text-sm font-medium text.muted.foreground">Container Type</p>
@@ -161,7 +128,7 @@ export default function ContainerDetailsPage(props: ContainerDetailsPageProps) {
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Current Shelf Location</p>
                         <div className="flex items-center justify-between">
-                            <p className="font-semibold">{container.shelfLocation}</p>
+                            <p className="font-semibold">{container.shelfLocation || 'Not Shelved'}</p>
                             <div className="flex gap-2">
                                 <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4"/> Move</Button>
                                 <Button variant="destructive" size="sm"><Trash2 className="mr-2 h-4 w-4"/> Clear</Button>
@@ -183,8 +150,8 @@ export default function ContainerDetailsPage(props: ContainerDetailsPageProps) {
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {container.items.map((item) => (
-                        <TableRow key={item.id}>
+                    {container.items.map((item, index) => (
+                        <TableRow key={`${item.description}-${index}`}>
                         <TableCell className="font-medium">{item.description}</TableCell>
                         <TableCell className="text-right font-mono">{item.quantity}</TableCell>
                         </TableRow>
