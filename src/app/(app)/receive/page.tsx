@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, ChangeEvent } from 'react';
 import { PageHeader } from '@/components/page-header';
 import {
   Form,
@@ -14,7 +14,7 @@ import {
   useFormContext,
 } from '@/components/ui/form';
 import QRcode from 'qrcode';
-import { useForm, useFieldArray, Control, UseFieldArrayRemove } from 'react-hook-form';
+import { useForm, useFieldArray, Control, UseFieldArrayRemove, RefCallBack, Noop } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -37,6 +37,7 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'fire
 import { collection, collectionGroup, query, runTransaction, doc, where, getDocs } from 'firebase/firestore';
 import { Bom, Category, Location, BomItem, Container } from '@/lib/data';
 import { useRouter } from 'next/navigation';
+import React from 'react';
 
 
 const itemSchema = z.object({
@@ -348,7 +349,7 @@ export default function ReceiveStorePage() {
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="workCategory"
@@ -717,7 +718,7 @@ function ImageUploadField({ control, containerIndex }: { control: Control<Receiv
     <FormField
       control={control}
       name={`containers.${containerIndex}.imageFile`}
-      render={({ field: { onChange, ...fieldProps } }) => (
+      render={({ field: { value, onChange, ...fieldProps } }) => (
         <FormItem>
           <FormLabel>Container Image</FormLabel>
           <div className="flex items-center gap-4">

@@ -97,14 +97,14 @@ export type Container = {
   jobName?: string;
   workCategoryId?: string;
   containerType: string;
-  shelfLocation?: string;
+  shelfLocation?: string | null;
   receiptDate: string;
   items: {
     description: string;
     quantity: number;
   }[];
-  notes?: string;
-  imageUrl?: string;
+  notes?: string | null;
+  imageUrl?: string | null;
 };
 
 
