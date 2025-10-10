@@ -575,7 +575,7 @@ function ItemArray({ containerIndex, control, jobItems }: ItemArrayProps) {
       {/* Item Header Row */}
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] sm:gap-2">
           <Label>Description/Part Number</Label>
-          <Label className="w-24 text-right">Quantity</Label>
+          <Label className="text-right">Quantity</Label>
           <div className="flex justify-end">
             <span className="sr-only">Remove</span>
           </div>
