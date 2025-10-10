@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useMemo } from 'react';
 import { PageHeader } from '@/components/page-header';
@@ -31,9 +31,9 @@ import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import Image from 'next/image';
 import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { collection, collectionGroup, query } from 'firebase/firestore';
-import { Bom, Category, Location, BomItem } from '@/lib/data';
-import { receiveContainer } from '../boms/actions';
+import { collection, collectionGroup, query, runTransaction, doc, where, getDocs } from 'firebase/firestore';
+import { Bom, Category, Location, BomItem, Container } from '@/lib/data';
+import { useRouter } from 'next/navigation';
 
 
 const itemSchema = z.object({
@@ -60,6 +60,7 @@ type ReceiveFormValues = z.infer<typeof formSchema>;
 
 
 export default function ReceiveStorePage() {
+  const router = useRouter();
   const { toast } = useToast();
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
@@ -106,31 +107,80 @@ export default function ReceiveStorePage() {
 
 
   async function onSubmit(values: ReceiveFormValues) {
+    if (!firestore) {
+      toast({ variant: "destructive", title: "Error", description: "Database not available." });
+      return;
+    }
     setIsSubmitting(true);
+    
     try {
-        for (const container of values.containers) {
-            await receiveContainer({
-                jobNumber: values.jobNumber,
-                jobName: values.jobName,
-                workCategoryId: values.workCategory,
-                containerType: container.type,
-                items: container.items,
-                shelfLocation: container.shelfLocation,
-                notes: container.notes,
-                imageUrl: container.imageUrl,
-            });
-        }
-        toast({
-            title: "Success",
-            description: `Successfully received ${values.containers.length} container(s) and updated inventory.`,
+      for (const container of values.containers) {
+        const containerData: Omit<Container, 'id' | 'receiptDate'> = {
+          jobNumber: values.jobNumber,
+          jobName: values.jobName,
+          workCategoryId: values.workCategory,
+          containerType: container.type,
+          items: container.items,
+          shelfLocation: container.shelfLocation,
+          notes: container.notes,
+          imageUrl: container.imageUrl,
+        };
+
+        await runTransaction(firestore, async (transaction) => {
+            const containersRef = collection(firestore, 'containers');
+            const newContainerRef = doc(containersRef);
+            
+            const newContainer: Container = {
+                ...containerData,
+                id: newContainerRef.id,
+                receiptDate: new Date().toISOString(),
+            };
+            transaction.set(newContainerRef, newContainer);
+
+            if (containerData.jobNumber) {
+                const bomsQuery = query(
+                    collectionGroup(firestore, 'boms'),
+                    where('jobNumber', '==', containerData.jobNumber)
+                );
+                
+                const bomsSnapshot = await getDocs(bomsQuery);
+
+                if (!bomsSnapshot.empty) {
+                    const bomDoc = bomsSnapshot.docs[0];
+                    const bomData = bomDoc.data() as Bom;
+                    const bomRef = bomDoc.ref;
+
+                    const updatedItems = bomData.items.map(bomItem => {
+                        const receivedItem = containerData.items.find(ci => ci.description === bomItem.description);
+                        if (receivedItem) {
+                            return {
+                                ...bomItem,
+                                onHandQuantity: (bomItem.onHandQuantity || 0) + receivedItem.quantity,
+                                lastUpdated: new Date().toISOString(),
+                            };
+                        }
+                        return bomItem;
+                    });
+                    
+                    transaction.update(bomRef, { items: updatedItems });
+                }
+            }
         });
-        form.reset({ containers: [{ type: '', items: [{description: '', quantity: 1}] }] });
+      }
+
+      toast({
+        title: "Success",
+        description: `Successfully received ${values.containers.length} container(s) and updated inventory.`,
+      });
+      
+      router.push('/containers');
+
     } catch (error) {
-        console.error("Failed to submit container reception:", error);
+        console.error("Failed to receive container:", error);
         toast({
             variant: "destructive",
             title: "Submission Failed",
-            description: "There was an error processing your request. Please try again.",
+            description: "There was an error processing your request. Please check permissions and try again.",
         });
     } finally {
         setIsSubmitting(false);
