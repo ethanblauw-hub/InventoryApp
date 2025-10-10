@@ -17,6 +17,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -25,7 +36,7 @@ import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { doc, collection, query, where, getDocs, runTransaction, DocumentData, collectionGroup } from 'firebase/firestore';
+import { doc, collection, query, where, getDocs, runTransaction, DocumentData, collectionGroup, deleteDoc } from 'firebase/firestore';
 import { Container, Category, Bom, Location as ShelfLocation } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { MoveContainerDialog } from '@/components/move-container-dialog';
@@ -45,6 +56,7 @@ export default function ContainerDetailsPage() {
   const id = params.id as string;
   const firestore = useFirestore();
   const [isShipping, setIsShipping] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const containerRef = useMemoFirebase(
     () => (firestore && id ? doc(firestore, 'containers', id) : null),
@@ -65,10 +77,10 @@ export default function ContainerDetailsPage() {
   const { data: shelfLocations, isLoading: areLocationsLoading } = useCollection<ShelfLocation>(locationsQuery);
 
   useEffect(() => {
-    if (!isContainerLoading && !container) {
+    if (!isContainerLoading && !container && !isDeleting) {
       notFound();
     }
-  }, [isContainerLoading, container]);
+  }, [isContainerLoading, container, isDeleting]);
   
   const handleShipContainer = async () => {
     if (!firestore || !container?.jobNumber) {
@@ -146,8 +158,29 @@ export default function ContainerDetailsPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!containerRef) return;
+    setIsDeleting(true);
+    try {
+      await deleteDoc(containerRef);
+      toast({
+        title: "Container Deleted",
+        description: "The container has been permanently removed.",
+      });
+      router.push('/containers');
+    } catch (error: any) {
+      console.error("Error deleting container:", error);
+      toast({
+        variant: "destructive",
+        title: "Deletion Failed",
+        description: error.message || "Could not delete the container.",
+      });
+      setIsDeleting(false);
+    }
+  };
 
-  if (isContainerLoading || areCategoriesLoading || areLocationsLoading) {
+
+  if (isContainerLoading || areCategoriesLoading || areLocationsLoading || isDeleting) {
     return <div>Loading container details...</div>;
   }
   
@@ -161,6 +194,7 @@ export default function ContainerDetailsPage() {
 
   const workCategory = categories?.find(cat => cat.id === container.workCategoryId);
   const sortedLocations = shelfLocations?.sort((a, b) => a.name.localeCompare(b.name)) || [];
+  const isAdmin = true;
 
 
   return (
@@ -189,6 +223,31 @@ export default function ContainerDetailsPage() {
               {isShipping ? 'Shipping...' : 'Ship Container'}
             </Button>
             <Button variant="ghost"><History className="mr-2 h-4 w-4" /> View Change Log</Button>
+            {isAdmin && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Container
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete this
+                      container.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete}>
+                      Continue
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
         </div>
       </PageHeader>
       
