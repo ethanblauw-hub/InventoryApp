@@ -15,12 +15,23 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { UserCog, Upload } from 'lucide-react';
+import { UserCog, Upload, Trash2, TriangleAlert } from 'lucide-react';
 import { useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { collection, doc, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDocs, query } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import Papa from 'papaparse';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 /**
  * A page component for adding new shelf locations.
@@ -35,6 +46,7 @@ export default function NewLocationPage() {
   const [file, setFile] = useState<File | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -113,7 +125,7 @@ export default function NewLocationPage() {
     
               const validLocations = rows
                 .map((row) => row.name?.trim())
-                .filter((name): name is string => !!name);
+                .filter((name): name is string => !!name && name.length > 0);
                 
               if (validLocations.length === 0) {
                 throw new Error("No valid shelf names found in the file.");
@@ -173,6 +185,36 @@ export default function NewLocationPage() {
     };
 
     reader.readAsText(file);
+  };
+
+  const handleDeleteAll = async () => {
+    if (!firestore) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Database not available.' });
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const q = query(collection(firestore, 'shelfLocations'));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        toast({ title: 'No Shelves to Delete', description: 'The shelf location collection is already empty.' });
+        return;
+      }
+      
+      const batch = writeBatch(firestore);
+      querySnapshot.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+      
+      toast({ title: 'Success', description: `Successfully deleted ${querySnapshot.size} shelf locations.` });
+    } catch (error) {
+      console.error('Error deleting all shelves:', error);
+      toast({ variant: 'destructive', title: 'Deletion Failed', description: 'Could not delete all shelves. Check permissions.' });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
 
@@ -240,6 +282,49 @@ export default function NewLocationPage() {
           </CardFooter>
         </Card>
       </div>
+
+      <Card className="border-destructive/50">
+        <CardHeader>
+          <div className="flex items-center gap-4">
+            <TriangleAlert className="h-6 w-6 text-destructive" />
+            <div className="flex flex-col">
+              <CardTitle className="text-destructive">Danger Zone</CardTitle>
+              <CardDescription>Destructive actions for testing.</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            This action will permanently delete all shelf locations from the database.
+            This cannot be undone.
+          </p>
+        </CardContent>
+        <CardFooter>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" disabled={isDeleting}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                {isDeleting ? 'Deleting...' : 'Delete All Shelves'}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete all
+                  shelf locations from your database.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteAll}>
+                  Continue
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardFooter>
+      </Card>
     </div>
   );
 }
