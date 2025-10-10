@@ -264,7 +264,7 @@ export default function ReceiveStorePage() {
               <CardTitle>Primary Information</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 gap-6">
+              <div className="space-y-6">
                 <FormField
                     control={form.control}
                     name="jobNumber"
@@ -353,11 +353,11 @@ export default function ReceiveStorePage() {
                         </FormItem>
                       )}
                     />
-                     <div>{/* Placeholder for alignment */}</div>
+                    <div>{/* Placeholder for alignment */}</div>
                   </div>
               </div>
                <FormDescription className="mt-4">
-                    Search by job name or number. Selecting a job auto-fills the category and item list.
+                    Selecting a job auto-fills the category and makes job-specific items available in the dropdown.
                </FormDescription>
             </CardContent>
           </Card>
@@ -555,7 +555,7 @@ function ItemArray({ containerIndex, control, jobItems }: ItemArrayProps) {
       {/* Item Header Row */}
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] sm:gap-2">
           <Label htmlFor={`containers.${containerIndex}.items.0.description`}>Description/Part Number</Label>
-          <Label htmlFor={`containers.${containerIndex}.items.0.quantity`} className="w-24 text-right">Quantity</Label>
+          <Label htmlFor={`containers.${containerIndex}.items.0.quantity`} className="w-24">Quantity</Label>
           <div className="flex justify-end">
             <span className="sr-only">Remove</span>
           </div>
