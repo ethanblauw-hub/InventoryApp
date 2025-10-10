@@ -52,23 +52,25 @@ export default function NewLocationPage() {
     setIsCreating(true);
     try {
       const locationRef = doc(collection(firestore, 'shelfLocations'));
-      await setDocumentNonBlocking(locationRef, {
+      // Using setDocumentNonBlocking as per project pattern
+      setDocumentNonBlocking(locationRef, {
         id: locationRef.id,
         name: shelfName.trim(),
         items: [],
       }, { merge: false });
 
       toast({
-        title: 'Shelf Created',
-        description: `Successfully created shelf "${shelfName.trim()}".`,
+        title: 'Shelf Creation Initiated',
+        description: `Shelf "${shelfName.trim()}" is being created.`,
       });
       setShelfName('');
     } catch (error) {
+      // This catch is for synchronous errors, async errors are handled in non-blocking-updates
       console.error('Error creating shelf:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to create shelf. Please check permissions.',
+        description: 'Could not start shelf creation process.',
       });
     } finally {
       setIsCreating(false);
@@ -89,61 +91,79 @@ export default function NewLocationPage() {
     if (!firestore) return;
 
     setIsImporting(true);
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        try {
-          const rows = results.data as { name?: string }[];
-          if (!results.meta.fields?.includes('name')) {
-            throw new Error("CSV must have a 'name' column header.");
-          }
+    
+    const reader = new FileReader();
+    
+    reader.onload = (event) => {
+        const csvData = event.target?.result as string;
 
-          const validLocations = rows
-            .map((row) => row.name?.trim())
-            .filter((name): name is string => !!name);
-            
-          if (validLocations.length === 0) {
-            throw new Error("No valid shelf names found in the file.");
-          }
+        Papa.parse(csvData, {
+          header: true,
+          skipEmptyLines: true,
+          complete: async (results) => {
+            try {
+              const rows = results.data as { name?: string }[];
+              if (!results.meta.fields?.includes('name')) {
+                throw new Error("CSV must have a 'name' column header.");
+              }
+    
+              const validLocations = rows
+                .map((row) => row.name?.trim())
+                .filter((name): name is string => !!name);
+                
+              if (validLocations.length === 0) {
+                throw new Error("No valid shelf names found in the file.");
+              }
+    
+              const batch = writeBatch(firestore);
+              validLocations.forEach((locationName) => {
+                const docRef = doc(collection(firestore, 'shelfLocations'));
+                batch.set(docRef, { id: docRef.id, name: locationName, items: [] });
+              });
+    
+              await batch.commit();
+    
+              toast({
+                title: 'Import Successful',
+                description: `Successfully imported ${validLocations.length} shelf locations.`,
+              });
+              setFile(null);
+              // Reset file input
+              const fileInput = document.getElementById('shelf-file') as HTMLInputElement;
+              if (fileInput) fileInput.value = '';
+    
+            } catch (error: any) {
+              console.error('Error importing shelves:', error);
+              toast({
+                variant: 'destructive',
+                title: 'Import Failed',
+                description: error.message || 'Could not import shelves.',
+              });
+            } finally {
+              setIsImporting(false);
+            }
+          },
+          error: (error: any) => {
+            toast({
+              variant: 'destructive',
+              title: 'Parsing Error',
+              description: error.message,
+            });
+            setIsImporting(false);
+          },
+        });
+    };
 
-          const batch = writeBatch(firestore);
-          validLocations.forEach((locationName) => {
-            const docRef = doc(collection(firestore, 'shelfLocations'));
-            batch.set(docRef, { id: docRef.id, name: locationName, items: [] });
-          });
-
-          await batch.commit();
-
-          toast({
-            title: 'Import Successful',
-            description: `Successfully imported ${validLocations.length} shelf locations.`,
-          });
-          setFile(null);
-          // Reset file input
-          const fileInput = document.getElementById('shelf-file') as HTMLInputElement;
-          if (fileInput) fileInput.value = '';
-
-        } catch (error: any) {
-          console.error('Error importing shelves:', error);
-          toast({
-            variant: 'destructive',
-            title: 'Import Failed',
-            description: error.message || 'Could not import shelves.',
-          });
-        } finally {
-          setIsImporting(false);
-        }
-      },
-      error: (error: any) => {
+    reader.onerror = () => {
         toast({
-          variant: 'destructive',
-          title: 'Parsing Error',
-          description: error.message,
+          variant: "destructive",
+          title: "File Read Error",
+          description: "The selected file could not be read.",
         });
         setIsImporting(false);
-      },
-    });
+    };
+
+    reader.readAsText(file);
   };
 
 
