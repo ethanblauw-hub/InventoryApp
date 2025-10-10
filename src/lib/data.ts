@@ -26,6 +26,7 @@ export type Item = {
  * @property {string} projectManager - The name of the project manager.
  * @property {string} primaryFieldLeader - The name of the field leader.
  * @property {string} workCategoryId - The ID of the associated work category.
+ * @property {string} type - The type of BOM ('order' or 'design').
  * @property {BomItem[]} items - An array of items included in this BOM.
  */
 export type Bom = {
@@ -35,6 +36,7 @@ export type Bom = {
   projectManager: string;
   primaryFieldLeader: string;
   workCategoryId: string;
+  type: 'order' | 'design';
   items: BomItem[];
 };
 
@@ -124,6 +126,7 @@ export const boms: Bom[] = [
     projectManager: 'Alice Johnson',
     primaryFieldLeader: 'Bob Williams',
     workCategoryId: 'cat-1', // Lighting
+    type: 'design',
     items: [
       { id: 'bom-item-1', description: 'LED Light Fixture 4ft', orderBomQuantity: 50, designBomQuantity: 52, onHandQuantity: 150, shippedQuantity: 40, shelfLocations: ['Aisle A, Shelf 1'], lastUpdated: '2023-10-20', imageId: 'steel_beam' },
       { id: 'bom-item-2', description: 'Conduit 3/4"', orderBomQuantity: 1000, designBomQuantity: 1050, onHandQuantity: 2500, shippedQuantity: 800, shelfLocations: ['Aisle B, Bin 4'], lastUpdated: '2023-10-22', imageId: 'anchor_bolt' },
@@ -137,6 +140,7 @@ export const boms: Bom[] = [
     projectManager: 'Charlie Brown',
     primaryFieldLeader: 'Diana Prince',
     workCategoryId: 'cat-2', // Gear
+    type: 'order',
     items: [
       { id: 'bom-item-4', description: 'Safety Harness', orderBomQuantity: 10, designBomQuantity: 10, onHandQuantity: 30, shippedQuantity: 0, shelfLocations: ['Safety Cabinet'], lastUpdated: '2023-11-05', imageId: 'shear_stud' },
       { id: 'bom-item-5', description: 'Hard Hat', orderBomQuantity: 10, designBomQuantity: 10, onHandQuantity: 50, shippedQuantity: 10, shelfLocations: ['Safety Cabinet'], lastUpdated: '2023-11-10', imageId: 'decking_panel' }
