@@ -44,8 +44,6 @@ export default function BomsPage() {
   );
   const { data: boms, isLoading: areBomsLoading } = useCollection<Bom>(bomsQuery);
 
-  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
   const categoriesQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'workCategories') : null),
     [firestore]
@@ -58,8 +56,6 @@ export default function BomsPage() {
    * @param {Bom} bom - The BOM object.
    */
   const handleRowClick = async (bom: Bom) => {
-    console.log(bom);
-    await sleep(5000);
     router.push(`/boms/${bom.jobNumber}/${bom.id}`);
   };
 

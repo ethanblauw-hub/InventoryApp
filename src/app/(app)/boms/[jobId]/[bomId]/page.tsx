@@ -20,18 +20,30 @@ import {
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { notFound, useRouter } from 'next/navigation';
 import { UpdateBOMDialog } from '@/components/update-bom-dialog';
 import { useDoc } from '@/firebase/firestore/use-doc';
-import { doc } from 'firebase/firestore';
+import { doc, deleteDoc } from 'firebase/firestore';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { Bom } from '@/lib/data';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection } from 'firebase/firestore';
 import { Category } from '@/lib/data';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
@@ -55,8 +67,8 @@ type BomDetailPageProps = {
  * @returns {JSX.Element} The rendered BOM detail page.
  */
 export default function BomDetailPage({ params }: BomDetailPageProps) {
-  console.log(params);
   const router = useRouter();
+  const { toast } = useToast();
   const { jobId, bomId } = params;
   const firestore = useFirestore();
 
@@ -73,19 +85,40 @@ export default function BomDetailPage({ params }: BomDetailPageProps) {
   );
   const { data: categories, isLoading: areCategoriesLoading } = useCollection<Category>(categoriesQuery);
 
+  // Placeholder for admin check. Replace with actual authentication logic.
+  const isAdmin = true;
+
+  const handleDelete = async () => {
+    if (!bomRef) return;
+    try {
+      await deleteDoc(bomRef);
+      toast({
+        title: "BOM Deleted",
+        description: `The BOM "${bom?.jobName}" has been successfully deleted.`,
+      });
+      router.push('/boms');
+    } catch (error) {
+      console.error("Error deleting BOM:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete the BOM. Please try again.",
+      });
+    }
+  };
+
+
   const handleRowClick = (shelfLocation: string) => {
     // Navigate to the locations page with the shelf location as a search query
     router.push(`/locations?search=${encodeURIComponent(shelfLocation)}`);
   }
 
-  console.log(isBomLoading, " ", areCategoriesLoading);
   if (isBomLoading || areCategoriesLoading) {
     return <div>Loading BOM details...</div>;
   }
   
   if (!bom) {
     // If loading is finished and we still have no bom, it's a 404
-    console.log(isBomLoading);
     notFound();
     return null; // notFound() throws an error so this is for type safety
   }
@@ -107,6 +140,31 @@ export default function BomDetailPage({ params }: BomDetailPageProps) {
             </Link>
           </Button>
           <UpdateBOMDialog bom={bom} />
+          {isAdmin && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete BOM
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the BOM
+                    for "{bom.jobName}" and all of its associated items.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete}>
+                    Continue
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       </PageHeader>
 

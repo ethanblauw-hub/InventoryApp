@@ -110,7 +110,7 @@ export default function ContainerDetailsPage(props: ContainerDetailsPageProps) {
     <div className="space-y-6">
       <PageHeader
         title={`Container #${container.id}`}
-        description={container.jobName || container.departmentName}
+        description={container.jobName || "No Description"}
       >
         <div className="flex flex-wrap gap-2">
             {bomId && (
