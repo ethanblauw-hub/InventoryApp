@@ -17,7 +17,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFirestore, useMemoFirebase, useUser, useCollection } from '@/firebase';
 import { collection, collectionGroup, query } from 'firebase/firestore';
-import { Bom, Location } from '@/lib/data';
+import { Bom, Location, BomItem } from '@/lib/data';
 
 /**
  * Defines the columns that can be used for sorting the locations table.
@@ -37,6 +37,16 @@ type SortableColumn =
  */
 type SortDirection = 'asc' | 'desc';
 
+type DisplayItem = {
+  location: string;
+} & Partial<BomItem & {
+    bomId: string;
+    jobNumber: string;
+    jobName: string;
+    projectManager: string;
+    primaryFieldLeader: string;
+}>;
+
 
 /**
  * A page component that displays a detailed inventory list organized by shelf location.
@@ -50,6 +60,7 @@ export default function LocationsPage() {
   const initialSearch = searchParams.get('search') || '';
   const [search, setSearch] = useState(initialSearch);
   const [showMyJobsOnly, setShowMyJobsOnly] = useState(false);
+  const [showEmptyShelves, setShowEmptyShelves] = useState(false);
   const [sortColumn, setSortColumn] = useState<SortableColumn>('location');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const { user: currentUser } = useUser();
@@ -88,12 +99,38 @@ export default function LocationsPage() {
   const occupiedShelfLocations = new Set(allBomItems.flatMap(item => item.shelfLocations));
   const occupancyPercentage = allShelfLocationNames.length > 0 ? (occupiedShelfLocations.size / allShelfLocationNames.length) * 100 : 0;
 
-  const locationItems = allBomItems.flatMap(item =>
+  const locationItems: DisplayItem[] = allBomItems.flatMap(item =>
     item.shelfLocations.map(location => ({
       location,
       ...item
     }))
   );
+
+  const allDisplayItems = useMemoFirebase(() => {
+    const items = new Map<string, DisplayItem[]>();
+    for (const item of locationItems) {
+      if (!items.has(item.location)) {
+        items.set(item.location, []);
+      }
+      items.get(item.location)!.push(item);
+    }
+    
+    const result: DisplayItem[] = [];
+    if (showEmptyShelves) {
+      allShelfLocationNames.forEach(name => {
+        const shelfItems = items.get(name);
+        if (shelfItems) {
+          result.push(...shelfItems);
+        } else {
+          result.push({ location: name });
+        }
+      });
+    } else {
+      result.push(...locationItems);
+    }
+    return result;
+  }, [locationItems, showEmptyShelves, allShelfLocationNames]);
+  
   
   /**
    * Handles sorting of the table columns. Toggles direction if the same column is clicked,
@@ -109,8 +146,8 @@ export default function LocationsPage() {
     }
   };
 
-  const filteredItems = locationItems.filter(item => {
-    if (showMyJobsOnly && currentUser?.displayName) {
+  const filteredItems = allDisplayItems.filter(item => {
+    if (showMyJobsOnly && currentUser?.displayName && item.jobNumber) {
        if (item.projectManager !== currentUser.displayName && item.primaryFieldLeader !== currentUser.displayName) {
         return false;
       }
@@ -125,8 +162,8 @@ export default function LocationsPage() {
       (item.jobName && item.jobName.toLowerCase().includes(searchTerm)) ||
       (item.projectManager && item.projectManager.toLowerCase().includes(searchTerm)) ||
       (item.primaryFieldLeader && item.primaryFieldLeader.toLowerCase().includes(searchTerm)) ||
-      item.description.toLowerCase().includes(searchTerm) ||
-      item.lastUpdated.toString().toLowerCase().includes(searchTerm)
+      (item.description && item.description.toLowerCase().includes(searchTerm)) ||
+      (item.lastUpdated && item.lastUpdated.toString().toLowerCase().includes(searchTerm))
     );
   });
 
@@ -201,7 +238,7 @@ export default function LocationsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Item Locations</CardTitle>
-           <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
+           <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:flex-wrap">
             <Input 
               placeholder="Search locations, jobs, items..."
               value={search}
@@ -212,6 +249,12 @@ export default function LocationsPage() {
               <Checkbox id="my-jobs-filter" checked={showMyJobsOnly} onCheckedChange={(checked) => setShowMyJobsOnly(!!checked)} />
               <Label htmlFor="my-jobs-filter" className="cursor-pointer">
                 Only show materials for my jobs
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox id="empty-shelves-filter" checked={showEmptyShelves} onCheckedChange={(checked) => setShowEmptyShelves(!!checked)} />
+              <Label htmlFor="empty-shelves-filter" className="cursor-pointer">
+                Show empty shelves
               </Label>
             </div>
           </div>
@@ -278,17 +321,25 @@ export default function LocationsPage() {
                   </TableRow>
                 )}
                 {!isLoading && sortedItems.map((item, index) => (
-                  <TableRow key={`${item.id}-${item.location}-${index}`}>
+                  <TableRow key={`${item.id || 'empty'}-${item.location}-${index}`}>
                     <TableCell>
                       <Badge variant="secondary">{item.location}</Badge>
                     </TableCell>
-                    <TableCell className="font-medium">{item.jobNumber}</TableCell>
-                    <TableCell>{item.jobName}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.projectManager}</TableCell>
-                    <TableCell className="text-muted-foreground">{item.primaryFieldLeader}</TableCell>
-                    <TableCell>{item.description}</TableCell>
-                    <TableCell className="text-right font-mono">{item.onHandQuantity.toLocaleString()}</TableCell>
-                    <TableCell className="text-muted-foreground">{new Date(item.lastUpdated).toLocaleDateString()}</TableCell>
+                    {item.id ? (
+                      <>
+                        <TableCell className="font-medium">{item.jobNumber}</TableCell>
+                        <TableCell>{item.jobName}</TableCell>
+                        <TableCell className="text-muted-foreground">{item.projectManager}</TableCell>
+                        <TableCell className="text-muted-foreground">{item.primaryFieldLeader}</TableCell>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell className="text-right font-mono">{item.onHandQuantity?.toLocaleString()}</TableCell>
+                        <TableCell className="text-muted-foreground">{new Date(item.lastUpdated!).toLocaleDateString()}</TableCell>
+                      </>
+                    ) : (
+                       <TableCell colSpan={7} className="text-center text-muted-foreground">
+                         Shelf is empty
+                       </TableCell>
+                    )}
                   </TableRow>
                 ))}
                  {!isLoading && sortedItems.length === 0 && (
