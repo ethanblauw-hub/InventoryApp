@@ -13,7 +13,6 @@ if (!getApps().length) {
 } else {
   app = getApp();
 }
-
 const firestore = getFirestore(app);
 
 export async function deleteBom(jobId: string, bomId: string) {
