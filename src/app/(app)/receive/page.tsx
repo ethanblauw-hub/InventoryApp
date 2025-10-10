@@ -14,7 +14,7 @@ import {
   useFormContext,
 } from '@/components/ui/form';
 import QRcode from 'qrcode';
-import { useForm, useFieldArray, Control, UseFieldArrayRemove, RefCallBack, Noop } from 'react-hook-form';
+import { useForm, useFieldArray, Control, UseFieldArrayRemove } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -32,9 +32,9 @@ import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import Image from 'next/image';
-import { useFirestore, useMemoFirebase, useCollection, useUser, useFirebaseApp } from '@/firebase';
+import { useFirestore, useMemoFirebase, useCollection, useFirebaseApp } from '@/firebase';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, collectionGroup, query, runTransaction, doc, where, getDocs, DocumentSnapshot, Transaction, DocumentData } from 'firebase/firestore';
+import { collection, collectionGroup, query, runTransaction, doc, where, getDocs, DocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { Bom, Category, Location, BomItem, Container } from '@/lib/data';
 import { useRouter } from 'next/navigation';
 import React from 'react';
@@ -88,13 +88,7 @@ export default function ReceiveStorePage() {
     () => (firestore ? collection(firestore, 'shelfLocations') : null),
     [firestore]
   );
-  const { data: locations, isLoading: areLocationsLoading } = useCollection<Location>(locationsQuery);
-
-  const sortedLocations = useMemo(() => {
-    if (!locations) return [];
-    return [...locations].sort((a, b) => a.name.localeCompare(b.name));
-  }, [locations]);
-
+  const { data: allLocations, isLoading: areLocationsLoading } = useCollection<Location>(locationsQuery);
 
   const form = useForm<ReceiveFormValues>({
     resolver: zodResolver(formSchema),
@@ -102,19 +96,39 @@ export default function ReceiveStorePage() {
       containers: [{ type: '', items: [{description: '', quantity: 1}] }],
     },
   });
-
-  const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
-    control: form.control,
-    name: "containers",
-  });
   
+  const watchedContainers = form.watch('containers');
   const selectedJobNumber = form.watch('jobNumber');
+
   const itemsForSelectedJob = useMemo(() => {
     if (!selectedJobNumber || !boms) return [];
     const bom = boms.find(b => b.jobNumber === selectedJobNumber);
     return bom ? bom.items : [];
   }, [selectedJobNumber, boms]);
 
+  const occupiedShelves = useMemo(() => {
+    const occupied = new Set<string>();
+    boms?.forEach(bom => {
+      bom.items.forEach(item => {
+        if (item.onHandQuantity > 0) {
+          item.shelfLocations.forEach(loc => occupied.add(loc));
+        }
+      });
+    });
+    return occupied;
+  }, [boms]);
+
+  const availableShelves = useMemo(() => {
+    if (!allLocations) return [];
+    return allLocations
+      .filter(loc => !occupiedShelves.has(loc.name))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [allLocations, occupiedShelves]);
+
+  const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
+    control: form.control,
+    name: "containers",
+  });
 
   async function onSubmit(values: ReceiveFormValues) {
     if (!firestore || !firebaseApp) {
@@ -125,7 +139,6 @@ export default function ReceiveStorePage() {
     const storage = getStorage(firebaseApp);
     
     try {
-      // Step 1: Upload all images and get their URLs (outside the transaction)
       const imageUrls = await Promise.all(
         values.containers.map(async (container) => {
           if (container.imageFile) {
@@ -139,12 +152,10 @@ export default function ReceiveStorePage() {
         })
       );
 
-      // Step 2: Run Firestore transaction for all database writes
       await runTransaction(firestore, async (transaction) => {
         let bomDocRef;
         let transactionalBomDoc: DocumentSnapshot<DocumentData> | null = null;
 
-        // --- PHASE 1: ALL READS ---
         if (values.jobNumber) {
           const bomsCollectionQuery = query(
             collectionGroup(firestore, 'boms'),
@@ -161,9 +172,6 @@ export default function ReceiveStorePage() {
           }
         }
         
-        // --- PHASE 2: ALL WRITES ---
-
-        // Write 1: Create all the new container documents
         values.containers.forEach((container, index) => {
           const containerData: Omit<Container, 'id' | 'receiptDate'> = {
             jobNumber: values.jobNumber,
@@ -185,7 +193,6 @@ export default function ReceiveStorePage() {
           transaction.set(newContainerRef, newContainer);
         });
 
-        // Write 2: Update the BOM quantities if a job was associated and found
         if (bomDocRef && transactionalBomDoc && transactionalBomDoc.exists()) {
           const transactionalBomData = transactionalBomDoc.data() as Bom;
 
@@ -449,27 +456,12 @@ export default function ReceiveStorePage() {
                     <Separator />
                     
                     <div className="space-y-4">
-                        <FormField
-                            control={form.control}
-                            name={`containers.${containerIndex}.shelfLocation`}
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Shelf Location</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                    <SelectValue placeholder={areLocationsLoading ? "Loading..." : "Select a destination location"} />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {sortedLocations.map(location => (
-                                      <SelectItem key={`${containerIndex}-${location.id}`} value={location.name}>{location.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                            )}
+                        <ShelfLocationSelector
+                          control={form.control}
+                          containerIndex={containerIndex}
+                          allAvailableShelves={availableShelves}
+                          watchedContainers={watchedContainers}
+                          isLoading={areLocationsLoading}
                         />
                          <FormField
                             control={form.control}
@@ -767,3 +759,65 @@ function ImageUploadField({ control, containerIndex }: { control: Control<Receiv
   );
 }
 
+type ShelfLocationSelectorProps = {
+  control: Control<ReceiveFormValues>;
+  containerIndex: number;
+  allAvailableShelves: Location[];
+  watchedContainers: Partial<ReceiveFormValues['containers']>;
+  isLoading: boolean;
+};
+
+function ShelfLocationSelector({ control, containerIndex, allAvailableShelves, watchedContainers, isLoading }: ShelfLocationSelectorProps) {
+  // Get shelves selected by OTHER containers in the form
+  const selectedByOthers = useMemo(() => {
+    return new Set(
+      watchedContainers
+        .filter((_, index) => index !== containerIndex)
+        .map(c => c.shelfLocation)
+        .filter((loc): loc is string => !!loc)
+    );
+  }, [watchedContainers, containerIndex]);
+
+  // Filter available shelves by removing ones selected by other containers
+  const selectableShelves = useMemo(() => {
+    return allAvailableShelves.filter(loc => !selectedByOthers.has(loc.name));
+  }, [allAvailableShelves, selectedByOthers]);
+
+  return (
+    <FormField
+      control={control}
+      name={`containers.${containerIndex}.shelfLocation`}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Shelf Location</FormLabel>
+          <Select onValueChange={field.onChange} value={field.value}>
+            <FormControl>
+              <SelectTrigger>
+                <SelectValue placeholder={isLoading ? "Loading..." : "Select an empty shelf"} />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              {field.value && !selectableShelves.some(s => s.name === field.value) && (
+                <SelectItem key={`${containerIndex}-${field.value}`} value={field.value}>
+                  {field.value}
+                </SelectItem>
+              )}
+              {selectableShelves.map(location => (
+                <SelectItem key={`${containerIndex}-${location.id}`} value={location.name}>
+                  {location.name}
+                </SelectItem>
+              ))}
+              {selectableShelves.length === 0 && !field.value && (
+                <div className="p-4 text-sm text-muted-foreground">No available shelves.</div>
+              )}
+            </SelectContent>
+          </Select>
+          <FormDescription>
+            Only empty shelves that have not been chosen by another container are shown.
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}

@@ -103,8 +103,20 @@ export default function LocationsPage() {
     return shelfLocations?.map(l => l.name).sort((a, b) => a.localeCompare(b)) || [];
   }, [shelfLocations]);
 
-  const occupiedShelfLocations = new Set(allBomItems.flatMap(item => item.shelfLocations));
-  const occupancyPercentage = allShelfLocationNames.length > 0 ? (occupiedShelfLocations.size / allShelfLocationNames.length) * 100 : 0;
+  const occupiedShelfLocations = useMemo(() => {
+    const occupied = new Set<string>();
+    allBomItems.forEach(item => {
+        // A shelf is considered occupied if there is any item with a positive on-hand quantity.
+        if (item.onHandQuantity > 0) {
+            item.shelfLocations.forEach(loc => occupied.add(loc));
+        }
+    });
+    return occupied;
+  }, [allBomItems]);
+
+  const occupancyPercentage = allShelfLocationNames.length > 0 
+    ? (occupiedShelfLocations.size / allShelfLocationNames.length) * 100 
+    : 0;
 
   const locationItems: DisplayItem[] = allBomItems.flatMap(item =>
     item.shelfLocations.map(location => ({
