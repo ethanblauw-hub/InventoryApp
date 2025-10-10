@@ -133,6 +133,8 @@ export default function ReceiveStorePage() {
     const storage = getStorage(firebaseApp);
     
     try {
+      console.log("Inside try block");
+      console.log("Step 1");
       // Step 1: Upload all images and get their URLs
       const imageUrls = await Promise.all(
         values.containers.map(async (container, index) => {
@@ -146,7 +148,7 @@ export default function ReceiveStorePage() {
           return null;
         })
       );
-
+      console.log("Step 2");
       // Step 2: Run Firestore transaction
       await runTransaction(firestore, async (transaction) => {
         // First, create all the new container documents
@@ -185,7 +187,9 @@ export default function ReceiveStorePage() {
             const bomRef = bomDoc.ref;
             
             // Get the current state of the BOM within the transaction
+            console.log("About to await transaction");
             const transactionalBomDoc = await transaction.get(bomRef);
+            console.log("Transaction back");
             if (!transactionalBomDoc.exists()) {
               throw new Error(`BOM for job ${values.jobNumber} not found!`);
             }
@@ -206,9 +210,10 @@ export default function ReceiveStorePage() {
                   lastUpdated: new Date().toISOString(),
                 };
               }
+              console.log("returning bomItem");
               return bomItem;
             });
-            
+            console.log("transaction update");
             transaction.update(bomRef, { items: updatedItems });
           }
         }
