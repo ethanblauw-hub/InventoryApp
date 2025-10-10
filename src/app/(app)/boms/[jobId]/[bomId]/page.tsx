@@ -1,6 +1,7 @@
 
 'use client';
 
+import { use, useEffect } from 'react';
 import { PageHeader } from '@/components/page-header';
 import {
   Card,
@@ -43,7 +44,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { deleteBom } from '../../actions';
+import { useToast } from '@/hooks/use-toast';
+import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
@@ -66,23 +68,40 @@ type BomDetailPageProps = {
  * @param {BomDetailPageProps} props - The props for the component.
  * @returns {JSX.Element} The rendered BOM detail page.
  */
-export default function BomDetailPage({ params }: BomDetailPageProps) {
+export default function BomDetailPage(props: BomDetailPageProps) {
   const router = useRouter();
-  const { jobId, bomId } = params;
+  const { jobId, bomId } = props.params;
   const firestore = useFirestore();
+  const { toast } = useToast();
 
   const bomRef = useMemoFirebase(
     () => (firestore && jobId && bomId ? doc(firestore, 'jobs', jobId, 'boms', bomId) : null),
     [firestore, jobId, bomId]
   );
   
-  const { data: bom, isLoading: isBomLoading } = useDoc<Bom>(bomRef);
+  const { data: bom, isLoading: isBomLoading, error } = useDoc<Bom>(bomRef);
 
   const categoriesQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'workCategories') : null),
     [firestore]
   );
   const { data: categories, isLoading: areCategoriesLoading } = useCollection<Category>(categoriesQuery);
+  
+  // This effect will watch for the bom to disappear after deletion
+  // and redirect if it's no longer loading but gone.
+  useEffect(() => {
+    if (!isBomLoading && !bom && !error) {
+      // If loading is done, there's no bom, and no error,
+      // it means it was likely deleted.
+      router.push('/boms');
+    }
+  }, [isBomLoading, bom, router, error]);
+  
+  if (error) {
+    // If there's an error (e.g. permissions), it's handled by the global error boundary
+    // but we can also show a message here if needed.
+    return <div>Error loading BOM. It may have been deleted or you may not have access.</div>
+  }
 
   // Placeholder for admin check. Replace with actual authentication logic.
   const isAdmin = true;
@@ -91,13 +110,25 @@ export default function BomDetailPage({ params }: BomDetailPageProps) {
     // Navigate to the locations page with the shelf location as a search query
     router.push(`/locations?search=${encodeURIComponent(shelfLocation)}`);
   }
+  
+  const handleDelete = () => {
+    if (!bomRef) return;
+    deleteDocumentNonBlocking(bomRef);
+    toast({
+      title: 'Deletion Started',
+      description: `The BOM "${bom?.jobName}" is being deleted.`,
+    });
+    // Immediately navigate away to prevent 404/rendering issues
+    router.push('/boms');
+  };
 
   if (isBomLoading || areCategoriesLoading) {
     return <div>Loading BOM details...</div>;
   }
   
   if (!bom) {
-    // If loading is finished and we still have no bom, it's a 404
+    // This will now mostly be seen briefly during the redirect after deletion.
+    // Or if the BOM was invalid to begin with.
     notFound();
     return null; // notFound() throws an error so this is for type safety
   }
@@ -135,14 +166,12 @@ export default function BomDetailPage({ params }: BomDetailPageProps) {
                     for "{bom.jobName}" and all of its associated items.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                 <form action={deleteBom.bind(null, bom.jobNumber, bom.id)}>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction asChild>
-                       <Button type="submit">Continue</Button>
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </form>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete}>
+                    Continue
+                  </AlertDialogAction>
+                </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           )}
