@@ -44,7 +44,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { deleteBom } from '../../actions';
 
 
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
@@ -89,24 +89,6 @@ export default function BomDetailPage({ params }: BomDetailPageProps) {
   // Placeholder for admin check. Replace with actual authentication logic.
   const isAdmin = true;
 
-  const handleDelete = () => {
-    if (!bomRef) return;
-    
-    // Redirect immediately to prevent 404 error on re-render
-    router.push('/boms');
-    router.refresh();
-    
-    // Non-blocking delete so the UI can update immediately
-    deleteDocumentNonBlocking(bomRef);
-    
-    // Show a toast message to confirm the action
-    toast({
-      title: "BOM Deletion Initiated",
-      description: `The BOM "${bom?.jobName}" is being deleted.`,
-    });
-  };
-
-
   const handleRowClick = (shelfLocation: string) => {
     // Navigate to the locations page with the shelf location as a search query
     router.push(`/locations?search=${encodeURIComponent(shelfLocation)}`);
@@ -124,6 +106,8 @@ export default function BomDetailPage({ params }: BomDetailPageProps) {
   
   const workCategory = categories?.find(c => c.id === bom.workCategoryId);
   const bomItems = bom.items || [];
+  
+  const deleteBomWithId = deleteBom.bind(null, bom.jobNumber, bom.id);
 
   return (
     <div className="space-y-6">
@@ -157,9 +141,13 @@ export default function BomDetailPage({ params }: BomDetailPageProps) {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete}>
-                    Continue
-                  </AlertDialogAction>
+                  <form action={deleteBomWithId}>
+                    <AlertDialogAction asChild>
+                      <Button type="submit">
+                        Continue
+                      </Button>
+                    </AlertDialogAction>
+                  </form>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
