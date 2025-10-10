@@ -1,5 +1,5 @@
 
-"use client";
+'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -18,12 +18,16 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useFirestore, useMemoFirebase, useUser, useCollection } from '@/firebase';
 import { collection, collectionGroup, query } from 'firebase/firestore';
 import { Bom, Location, BomItem } from '@/lib/data';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 /**
  * Defines the columns that can be used for sorting the locations table.
  */
 type SortableColumn = 
   | 'location' 
+  | 'location_section'
+  | 'location_bay'
+  | 'location_shelf'
   | 'jobNumber' 
   | 'jobName' 
   | 'projectManager' 
@@ -168,8 +172,34 @@ export default function LocationsPage() {
   });
 
   const sortedItems = [...filteredItems].sort((a, b) => {
-    const aValue = a[sortColumn] || '';
-    const bValue = b[sortColumn] || '';
+    const getPart = (location: string, part: 'section' | 'bay' | 'shelf') => {
+      const parts = location.split('.');
+      if (parts.length !== 3) return '';
+      if (part === 'section') return parts[0];
+      if (part === 'bay') return parts[1];
+      if (part === 'shelf') return parts[2];
+      return '';
+    };
+
+    let aValue, bValue;
+
+    switch (sortColumn) {
+      case 'location_section':
+        aValue = getPart(a.location, 'section');
+        bValue = getPart(b.location, 'section');
+        break;
+      case 'location_bay':
+        aValue = getPart(a.location, 'bay');
+        bValue = getPart(b.location, 'bay');
+        break;
+      case 'location_shelf':
+        aValue = getPart(a.location, 'shelf');
+        bValue = getPart(b.location, 'shelf');
+        break;
+      default:
+        aValue = a[sortColumn] || '';
+        bValue = b[sortColumn] || '';
+    }
     
     let comparison = 0;
     if (aValue > bValue) {
@@ -265,10 +295,35 @@ export default function LocationsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>
-                     <Button variant="ghost" onClick={() => handleSort('location')} className="px-1">
-                      Shelf Location
-                      <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="px-1">
+                          Shelf Location
+                          <ArrowUpDown className="ml-2 h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem onClick={() => handleSort('location')}>
+                          Sort A-Z
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setSortColumn('location');
+                          setSortDirection('desc');
+                        }}>
+                          Sort Z-A
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleSort('location_section')}>
+                          Sort by Section (Aisle)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleSort('location_bay')}>
+                          Sort by Bay (Number)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleSort('location_shelf')}>
+                          Sort by Shelf (Letter)
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableHead>
                   <TableHead>
                      <Button variant="ghost" onClick={() => handleSort('jobNumber')} className="px-1">
@@ -355,3 +410,5 @@ export default function LocationsPage() {
     </div>
   );
 }
+
+    
