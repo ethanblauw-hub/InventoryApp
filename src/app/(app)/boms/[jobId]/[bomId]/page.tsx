@@ -1,7 +1,6 @@
-
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import {
   Card,
@@ -56,7 +55,7 @@ const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.i
  * @property {string} params.bomId - The ID of the Bill of Materials to display.
  */
 type BomDetailPageProps = {
-  params: Promise<{ jobId: string; bomId: string }>;
+  params: { jobId: string; bomId: string };
 };
 
 /**
@@ -67,9 +66,9 @@ type BomDetailPageProps = {
  * @param {BomDetailPageProps} props - The props for the component.
  * @returns {JSX.Element} The rendered BOM detail page.
  */
-export default function BomDetailPage(props: BomDetailPageProps) {
+export default function BomDetailPage({ params }: BomDetailPageProps) {
   const router = useRouter();
-  const { jobId, bomId } = use(props.params);
+  const { jobId, bomId } = params;
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -87,15 +86,11 @@ export default function BomDetailPage(props: BomDetailPageProps) {
   );
   const { data: categories, isLoading: areCategoriesLoading } = useCollection<Bom>(categoriesQuery);
   
-  // This effect will watch for the bom to disappear after deletion
-  // and redirect if it's no longer loading but gone.
   useEffect(() => {
-    if (!isBomLoading && !bom && !error && !isDeleting) {
-      // If loading is done, there's no bom, and no error,
-      // it means it was likely deleted.
-      router.push('/boms');
+    if (!isBomLoading && !bom && !isDeleting) {
+      notFound();
     }
-  }, [isBomLoading, bom, router, error, isDeleting]);
+  }, [isBomLoading, bom, isDeleting]);
   
   if (error) {
     // If there's an error (e.g. permissions), it's handled by the global error boundary
@@ -103,18 +98,16 @@ export default function BomDetailPage(props: BomDetailPageProps) {
     return <div>Error loading BOM. It may have been deleted or you may not have access.</div>
   }
 
-  // Placeholder for admin check. Replace with actual authentication logic.
   const isAdmin = true;
 
   const handleRowClick = (shelfLocation: string) => {
-    // Navigate to the locations page with the shelf location as a search query
     router.push(`/locations?search=${encodeURIComponent(shelfLocation)}`);
   }
   
   const handleDelete = () => {
     if (!bomRef) return;
     
-    setIsDeleting(true); // Set deleting state to true
+    setIsDeleting(true);
     
     deleteDocumentNonBlocking(bomRef);
     
@@ -123,7 +116,6 @@ export default function BomDetailPage(props: BomDetailPageProps) {
       description: `The BOM "${bom?.jobName}" is being deleted.`,
     });
     
-    // Immediately navigate away to prevent 404/rendering issues
     router.push('/boms');
   };
 
@@ -132,10 +124,7 @@ export default function BomDetailPage(props: BomDetailPageProps) {
   }
   
   if (!bom) {
-    // This will now only be hit if the BOM was invalid to begin with,
-    // not during deletion.
-    notFound();
-    return null; // notFound() throws an error so this is for type safety
+    return null; 
   }
   
   const workCategory = categories?.find(c => c.id === bom.workCategoryId);
@@ -216,7 +205,6 @@ export default function BomDetailPage(props: BomDetailPageProps) {
               <TableBody>
                 {bomItems.map((item) => {
                   const placeholder = item.imageId ? getPlaceholderImage(item.imageId) : undefined;
-                  // Handle cases where an item might have multiple locations. We'll make each one clickable.
                   const locations = item.shelfLocations.join(', ');
                   const lastUpdatedDate = item.lastUpdated ? new Date(item.lastUpdated).toLocaleDateString() : 'N/A';
                   

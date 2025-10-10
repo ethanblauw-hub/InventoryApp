@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { PageHeader } from '@/components/page-header';
 import {
   Form,
@@ -14,7 +13,7 @@ import {
   useFormContext,
 } from '@/components/ui/form';
 import QRcode from 'qrcode';
-import { useForm, useFieldArray, Controller, Control } from 'react-hook-form';
+import { useForm, useFieldArray, Control } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -125,6 +124,7 @@ export default function ReceiveStorePage() {
             title: "Success",
             description: `Successfully received ${values.containers.length} container(s) and updated inventory.`,
         });
+        form.reset({ containers: [{ type: '', items: [{description: '', quantity: 1}] }] });
     } catch (error) {
         console.error("Failed to submit container reception:", error);
         toast({
@@ -261,7 +261,7 @@ export default function ReceiveStorePage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Work Category</FormLabel>
-                     <Select onValueChange={field.onChange} value={field.value}>
+                     <Select onValueChange={field.onChange} value={field.value} disabled={!!selectedJobNumber}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder={areCategoriesLoading ? "Loading..." : "Select a category"} />
@@ -299,16 +299,18 @@ export default function ReceiveStorePage() {
 
             {containerFields.map((container, containerIndex) => (
               <Card key={container.id} className="relative">
-                 <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-2 right-2 text-muted-foreground hover:text-destructive"
-                    onClick={() => removeContainer(containerIndex)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span className="sr-only">Remove Container</span>
-                  </Button>
+                 {containerFields.length > 1 && (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 text-muted-foreground hover:text-destructive"
+                        onClick={() => removeContainer(containerIndex)}
+                    >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Remove Container</span>
+                    </Button>
+                 )}
                 <CardHeader>
                     <FormField
                         control={form.control}
@@ -399,7 +401,7 @@ export default function ReceiveStorePage() {
           </div>
           
           <Button type="submit" disabled={containerFields.length === 0 || isSubmitting}>
-            {isSubmitting ? "Submitting..." : "Submit"}
+            {isSubmitting ? "Submitting..." : "Receive and Store"}
           </Button>
         </form>
       </Form>
@@ -447,7 +449,7 @@ function ItemArray({ containerIndex, control, jobItems }: ItemArrayProps) {
     name: `containers.${containerIndex}.items`
   });
   
-  const { formState: { errors } } = useFormContext<ReceiveFormValues>();
+  const { register, formState: { errors } } = useFormContext<ReceiveFormValues>();
   const containerErrors = errors.containers?.[containerIndex] as any;
 
   return (
@@ -482,18 +484,27 @@ function ItemArray({ containerIndex, control, jobItems }: ItemArrayProps) {
                       <Button
                         variant="outline"
                         role="combobox"
-                        className={cn("w-full justify-between", !field.value && "text-muted-foreground")}
+                        className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}
                       >
                         {field.value || "Select or type an item"}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <Command shouldFilter={true}>
-                      <CommandInput placeholder="Search item..." />
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command shouldFilter={true} filter={(value, search) => {
+                      if (value.toLowerCase().includes(search.toLowerCase())) return 1;
+                      return 0;
+                    }}>
+                      <CommandInput 
+                        placeholder="Search or type new item..." 
+                        {...register(`containers.${containerIndex}.items.${itemIndex}.description`)}
+                        onValueChange={(search) => field.onChange(search)}
+                      />
                       <CommandList>
-                        <CommandEmpty>No item found. You can add a new one.</CommandEmpty>
+                        <CommandEmpty>
+                            <div className="p-4 text-sm">No items match. You can add this as a new item.</div>
+                        </CommandEmpty>
                         <CommandGroup>
                           {jobItems.map((jobItem) => (
                             <CommandItem
@@ -525,24 +536,25 @@ function ItemArray({ containerIndex, control, jobItems }: ItemArrayProps) {
               <FormItem>
                 <FormLabel className={cn(itemIndex !== 0 && "sr-only")}>Quantity</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="1" {...field} className="w-24" />
+                  <Input type="number" placeholder="1" {...field} className="w-24 text-right" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
           <div className={cn("flex items-end h-full", itemIndex !== 0 && "sm:pt-8")}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground hover:text-destructive"
-              onClick={() => remove(itemIndex)}
-              disabled={fields.length <= 1}
-            >
-              <Trash2 className="h-4 w-4" />
-              <span className="sr-only">Remove Item</span>
-            </Button>
+             {fields.length > 1 && (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => remove(itemIndex)}
+                >
+                    <Trash2 className="h-4 w-4" />
+                    <span className="sr-only">Remove Item</span>
+                </Button>
+             )}
           </div>
         </div>
       ))}

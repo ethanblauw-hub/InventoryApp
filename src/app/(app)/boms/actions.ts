@@ -12,6 +12,7 @@ import {
   where,
   getDocs,
   collectionGroup,
+  writeBatch,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -22,7 +23,6 @@ if (!getApps().length) {
 } else {
   app = getApp();
 }
-
 const firestore = getFirestore(app);
 
 export async function receiveContainer(containerData: Omit<Container, 'id' | 'receiptDate'>) {
