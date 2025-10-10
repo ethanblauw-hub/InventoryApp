@@ -23,7 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Trash2, Camera, Printer, Package, Box, ShoppingCart, MoreHorizontal, Download } from 'lucide-react';
+import { PlusCircle, Trash2, Camera, Printer, Package, Box, ShoppingCart, MoreHorizontal, Download, FileImage } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -32,7 +32,8 @@ import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import Image from 'next/image';
-import { useFirestore, useMemoFirebase, useCollection, useUser } from '@/firebase';
+import { useFirestore, useMemoFirebase, useCollection, useUser, useFirebaseApp } from '@/firebase';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, collectionGroup, query, runTransaction, doc, where, getDocs } from 'firebase/firestore';
 import { Bom, Category, Location, BomItem, Container } from '@/lib/data';
 import { useRouter } from 'next/navigation';
@@ -48,7 +49,7 @@ const containerSchema = z.object({
   items: z.array(itemSchema).min(1, "At least one item is required per container."),
   shelfLocation: z.string().optional(),
   notes: z.string().optional(),
-  imageUrl: z.string().optional(),
+  imageFile: z.instanceof(File).optional(),
 });
 
 const formSchema = z.object({
@@ -68,6 +69,7 @@ export default function ReceiveStorePage() {
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
+  const firebaseApp = useFirebaseApp();
 
   const bomsQuery = useMemoFirebase(
     () => (firestore ? query(collectionGroup(firestore, 'boms')) : null),
@@ -122,16 +124,32 @@ export default function ReceiveStorePage() {
 
 
   async function onSubmit(values: ReceiveFormValues) {
-    if (!firestore) {
+    if (!firestore || !firebaseApp) {
       toast({ variant: "destructive", title: "Error", description: "Database not available." });
       return;
     }
     setIsSubmitting(true);
+    const storage = getStorage(firebaseApp);
     
     try {
+      // Step 1: Upload all images and get their URLs
+      const imageUrls = await Promise.all(
+        values.containers.map(async (container, index) => {
+          if (container.imageFile) {
+            const file = container.imageFile;
+            const filePath = `images/containers/${Date.now()}-${file.name}`;
+            const imageStorageRef = storageRef(storage, filePath);
+            await uploadBytes(imageStorageRef, file);
+            return getDownloadURL(imageStorageRef);
+          }
+          return null;
+        })
+      );
+
+      // Step 2: Run Firestore transaction
       await runTransaction(firestore, async (transaction) => {
         // First, create all the new container documents
-        for (const container of values.containers) {
+        values.containers.forEach((container, index) => {
           const containerData: Omit<Container, 'id' | 'receiptDate'> = {
             jobNumber: values.jobNumber,
             jobName: values.jobName,
@@ -140,7 +158,7 @@ export default function ReceiveStorePage() {
             items: container.items,
             shelfLocation: container.shelfLocation ?? null,
             notes: container.notes ?? null,
-            imageUrl: container.imageUrl ?? null,
+            imageUrl: imageUrls[index] ?? null,
           };
           
           const newContainerRef = doc(collection(firestore, 'containers'));
@@ -150,7 +168,7 @@ export default function ReceiveStorePage() {
               receiptDate: new Date().toISOString(),
           };
           transaction.set(newContainerRef, newContainer);
-        }
+        });
 
         // If a job is associated, update the BOM quantities
         if (values.jobNumber) {
@@ -266,99 +284,99 @@ export default function ReceiveStorePage() {
             <CardContent>
               <div className="space-y-6">
                 <FormField
+                  control={form.control}
+                  name="jobNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Job Number</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "w-full justify-between",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {areBomsLoading
+                                ? "Loading jobs..."
+                                : field.value
+                                ? boms?.find(
+                                    (bom) => bom.jobNumber === field.value
+                                  )?.jobName
+                                : "Select job by name or number"}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            <CommandInput placeholder="Search job..." />
+                            <CommandEmpty>No job found.</CommandEmpty>
+                            <CommandList>
+                              {boms?.map((bom) => (
+                                <CommandItem
+                                  value={`${bom.jobName} ${bom.jobNumber}`}
+                                  key={bom.id}
+                                  onSelect={() => {
+                                    form.setValue("jobNumber", bom.jobNumber);
+                                    form.setValue("jobName", bom.jobName);
+                                    form.setValue("workCategory", bom.workCategoryId);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      bom.jobNumber === field.value
+                                        ? "opacity-100"
+                                        : "opacity-0"
+                                    )}
+                                  />
+                                  <div>
+                                      <p>{bom.jobName}</p>
+                                      <p className="text-sm text-muted-foreground">{bom.jobNumber}</p>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                  <FormField
                     control={form.control}
-                    name="jobNumber"
+                    name="workCategory"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Job Number</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
+                        <FormLabel>Work Category</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={!!selectedJobNumber}>
                             <FormControl>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                className={cn(
-                                  "w-full justify-between",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {areBomsLoading
-                                  ? "Loading jobs..."
-                                  : field.value
-                                  ? boms?.find(
-                                      (bom) => bom.jobNumber === field.value
-                                    )?.jobName
-                                  : "Select job by name or number"}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </Button>
+                              <SelectTrigger>
+                                <SelectValue placeholder={areCategoriesLoading ? "Loading..." : "Select a category"} />
+                              </SelectTrigger>
                             </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                            <Command>
-                              <CommandInput placeholder="Search job..." />
-                              <CommandEmpty>No job found.</CommandEmpty>
-                              <CommandList>
-                                {boms?.map((bom) => (
-                                  <CommandItem
-                                    value={`${bom.jobName} ${bom.jobNumber}`}
-                                    key={bom.id}
-                                    onSelect={() => {
-                                      form.setValue("jobNumber", bom.jobNumber);
-                                      form.setValue("jobName", bom.jobName);
-                                      form.setValue("workCategory", bom.workCategoryId);
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        bom.jobNumber === field.value
-                                          ? "opacity-100"
-                                          : "opacity-0"
-                                      )}
-                                    />
-                                    <div>
-                                        <p>{bom.jobName}</p>
-                                        <p className="text-sm text-muted-foreground">{bom.jobNumber}</p>
-                                    </div>
-                                  </CommandItem>
-                                ))}
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
+                            <SelectContent>
+                              {categories?.map(cat => (
+                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                    <FormField
-                      control={form.control}
-                      name="workCategory"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Work Category</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value} disabled={!!selectedJobNumber}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={areCategoriesLoading ? "Loading..." : "Select a category"} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {categories?.map(cat => (
-                                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div>{/* Placeholder for alignment */}</div>
-                  </div>
+                  <div></div>
+                </div>
               </div>
-               <FormDescription className="mt-4">
-                    Selecting a job auto-fills the category and makes job-specific items available in the dropdown.
-               </FormDescription>
+              <FormDescription className="mt-4">
+                  Selecting a job auto-fills the category and makes job-specific items available in the dropdown.
+              </FormDescription>
             </CardContent>
           </Card>
 
@@ -466,11 +484,8 @@ export default function ReceiveStorePage() {
                             </FormItem>
                             )}
                         />
+                        <ImageUploadField control={form.control} containerIndex={containerIndex} />
                         <div className="flex flex-wrap gap-2">
-                             <Button type="button" variant="outline">
-                                <Camera className="mr-2 h-4 w-4" />
-                                Upload Photo
-                            </Button>
                             <Button type="button" onClick={() => generateQRCode("temp-data")} variant="secondary">
                                 <Printer className="mr-2 h-4 w-4" />
                                 Print Label
@@ -552,10 +567,9 @@ function ItemArray({ containerIndex, control, jobItems }: ItemArrayProps) {
         <p className="text-sm font-medium text-destructive">{containerErrors.items.message}</p>
       )}
 
-      {/* Item Header Row */}
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] sm:gap-2">
-          <Label htmlFor={`containers.${containerIndex}.items.0.description`}>Description/Part Number</Label>
-          <Label htmlFor={`containers.${containerIndex}.items.0.quantity`} className="w-24">Quantity</Label>
+          <Label>Description/Part Number</Label>
+          <Label className="w-24 text-right">Quantity</Label>
           <div className="flex justify-end">
             <span className="sr-only">Remove</span>
           </div>
@@ -589,7 +603,7 @@ type ItemRowProps = {
 
 function ItemRow({ containerIndex, itemIndex, control, jobItems, onRemove, showRemoveButton }: ItemRowProps) {
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const { register } = useFormContext<ReceiveFormValues>();
+  const { register, setValue } = useFormContext<ReceiveFormValues>();
   
   return (
     <div className="grid grid-cols-1 gap-4 items-start sm:grid-cols-[1fr_auto_auto] sm:gap-2">
@@ -619,7 +633,9 @@ function ItemRow({ containerIndex, itemIndex, control, jobItems, onRemove, showR
                   <CommandInput 
                     placeholder="Search or type new item..." 
                     {...register(`containers.${containerIndex}.items.${itemIndex}.description`)}
-                    onValueChange={(search) => field.onChange(search)}
+                    onValueChange={(search) => {
+                      setValue(`containers.${containerIndex}.items.${itemIndex}.description`, search);
+                    }}
                   />
                   <CommandList>
                     <CommandEmpty>
@@ -631,7 +647,7 @@ function ItemRow({ containerIndex, itemIndex, control, jobItems, onRemove, showR
                           key={jobItem.id}
                           value={jobItem.description}
                           onSelect={(currentValue) => {
-                            field.onChange(currentValue === field.value ? "" : currentValue);
+                            setValue(`containers.${containerIndex}.items.${itemIndex}.description`, currentValue === field.value ? "" : currentValue);
                             setPopoverOpen(false);
                           }}
                         >
@@ -662,7 +678,7 @@ function ItemRow({ containerIndex, itemIndex, control, jobItems, onRemove, showR
           </FormItem>
         )}
       />
-      <div className="flex items-end h-full">
+      <div className="flex items-center h-full">
          {showRemoveButton && (
             <Button
                 type="button"
@@ -677,5 +693,71 @@ function ItemRow({ containerIndex, itemIndex, control, jobItems, onRemove, showR
          )}
       </div>
     </div>
+  );
+}
+
+function ImageUploadField({ control, containerIndex }: { control: Control<ReceiveFormValues>, containerIndex: number}) {
+  const { watch, setValue } = useFormContext<ReceiveFormValues>();
+  const file = watch(`containers.${containerIndex}.imageFile`);
+  const [preview, setPreview] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setPreview(null);
+    }
+  }, [file]);
+
+  return (
+    <FormField
+      control={control}
+      name={`containers.${containerIndex}.imageFile`}
+      render={({ field: { onChange, ...fieldProps } }) => (
+        <FormItem>
+          <FormLabel>Container Image</FormLabel>
+          <div className="flex items-center gap-4">
+            <FormControl>
+                <Button asChild variant="outline" className="relative">
+                    <div>
+                        <Camera className="mr-2 h-4 w-4" />
+                        <span>{file ? "Change" : "Upload"} Photo</span>
+                        <Input
+                            {...fieldProps}
+                            type="file"
+                            accept="image/*"
+                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                            onChange={(event) => {
+                                onChange(event.target.files && event.target.files[0]);
+                            }}
+                        />
+                    </div>
+                </Button>
+            </FormControl>
+            {preview ? (
+              <div className="relative w-20 h-20">
+                <Image src={preview} alt="Container preview" layout="fill" objectFit="cover" className="rounded-md" />
+                <Button 
+                    variant="destructive" 
+                    size="icon" 
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                    onClick={() => setValue(`containers.${containerIndex}.imageFile`, undefined)}>
+                    <Trash2 className="h-3 w-3"/>
+                </Button>
+              </div>
+            ) : (
+                <div className="w-20 h-20 rounded-md bg-muted flex items-center justify-center">
+                    <FileImage className="h-8 w-8 text-muted-foreground"/>
+                </div>
+            )}
+          </div>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
   );
 }
