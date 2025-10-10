@@ -1,0 +1,16 @@
+
+{
+  "indexes": [
+    {
+      "collectionGroup": "boms",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "jobNumber",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
