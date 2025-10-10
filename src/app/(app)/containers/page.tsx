@@ -118,7 +118,7 @@ export default function ContainersPage() {
                 })}
                 {!isLoading && (!containers || containers.length === 0) && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center">No containers found. Try receiving one.</TableCell>
+                    <TableCell colSpan={6} className="text-center">No containers found.</TableCell>
                   </TableRow>
                 )}
               </TableBody>

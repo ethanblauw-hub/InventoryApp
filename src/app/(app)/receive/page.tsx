@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/page-header';
 import {
   Form,
@@ -33,52 +33,38 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import Image from 'next/image';
 import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { collection, collectionGroup, query } from 'firebase/firestore';
-import { Bom, Category, Location } from '@/lib/data';
+import { Bom, Category, Location, BomItem } from '@/lib/data';
+import { receiveContainer } from '../boms/actions';
 
-/**
- * Zod schema for validating a single item within a container.
- */
+
 const itemSchema = z.object({
   description: z.string().min(1, "Item description is required."),
   quantity: z.coerce.number().min(1, "Quantity must be at least 1."),
 });
 
-/**
- * Zod schema for validating a single container.
- */
 const containerSchema = z.object({
   type: z.string().min(1, "Container type is required."),
   items: z.array(itemSchema).min(1, "At least one item is required per container."),
   shelfLocation: z.string().optional(),
   notes: z.string().optional(),
+  imageUrl: z.string().optional(),
 });
 
-/**
- * Zod schema for the main receiving form.
- */
 const formSchema = z.object({
   jobNumber: z.string().optional(),
+  jobName: z.string().optional(),
   workCategory: z.string().optional(),
   containers: z.array(containerSchema).min(1, "At least one container is required."),
 });
 
-/**
- * Type definition for the form values, inferred from the Zod schema.
- */
 type ReceiveFormValues = z.infer<typeof formSchema>;
 
-/**
- * A page component for receiving new materials and storing them.
- * It features a dynamic form that allows users to log one or more containers,
- * add multiple items to each container, associate them with a job, and assign them
- * to a shelf location.
- *
- * @returns {JSX.Element} The rendered receive/store page.
- */
+
 export default function ReceiveStorePage() {
   const { toast } = useToast();
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
 
   const bomsQuery = useMemoFirebase(
@@ -103,7 +89,7 @@ export default function ReceiveStorePage() {
   const form = useForm<ReceiveFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      containers: [],
+      containers: [{ type: '', items: [{description: '', quantity: 1}] }],
     },
   });
 
@@ -111,24 +97,46 @@ export default function ReceiveStorePage() {
     control: form.control,
     name: "containers",
   });
+  
+  const selectedJobNumber = form.watch('jobNumber');
+  const itemsForSelectedJob = useMemo(() => {
+    if (!selectedJobNumber || !boms) return [];
+    const bom = boms.find(b => b.jobNumber === selectedJobNumber);
+    return bom ? bom.items : [];
+  }, [selectedJobNumber, boms]);
 
-  /**
-   * Handles the form submission. Logs the form data and displays a success toast.
-   * @param {ReceiveFormValues} values - The validated form data.
-   */
-  function onSubmit(values: ReceiveFormValues) {
-    console.log(values);
-    toast({
-      title: "Submission Successful",
-      description: `Logged ${values.containers.length} container(s).`,
-    });
-    form.reset();
+
+  async function onSubmit(values: ReceiveFormValues) {
+    setIsSubmitting(true);
+    try {
+        for (const container of values.containers) {
+            await receiveContainer({
+                jobNumber: values.jobNumber,
+                jobName: values.jobName,
+                workCategoryId: values.workCategory,
+                containerType: container.type,
+                items: container.items,
+                shelfLocation: container.shelfLocation,
+                notes: container.notes,
+                imageUrl: container.imageUrl,
+            });
+        }
+        toast({
+            title: "Success",
+            description: `Successfully received ${values.containers.length} container(s) and updated inventory.`,
+        });
+    } catch (error) {
+        console.error("Failed to submit container reception:", error);
+        toast({
+            variant: "destructive",
+            title: "Submission Failed",
+            description: "There was an error processing your request. Please try again.",
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
   }
 
-  /**
-   * Generates a QR code and displays it in a dialog.
-   * @param {string} data - The data to encode in the QR code.
-   */
   async function generateQRCode(data: string) {
     try {
       const url = await QRcode.toDataURL('https://eganco.com');
@@ -218,6 +226,7 @@ export default function ReceiveStorePage() {
                                 key={bom.id}
                                 onSelect={() => {
                                   form.setValue("jobNumber", bom.jobNumber);
+                                  form.setValue("jobName", bom.jobName);
                                   form.setValue("workCategory", bom.workCategoryId);
                                 }}
                               >
@@ -240,7 +249,7 @@ export default function ReceiveStorePage() {
                       </PopoverContent>
                     </Popover>
                     <FormDescription>
-                      Search by job name or number. Selecting a job will auto-fill the work category.
+                      Search by job name or number. Selecting a job auto-fills the category and item list.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -326,7 +335,11 @@ export default function ReceiveStorePage() {
                     />
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <ItemArray control={form.control} containerIndex={containerIndex} />
+                    <ItemArray 
+                      control={form.control} 
+                      containerIndex={containerIndex} 
+                      jobItems={itemsForSelectedJob}
+                    />
 
                     <Separator />
                     
@@ -385,7 +398,9 @@ export default function ReceiveStorePage() {
             ))}
           </div>
           
-          <Button type="submit" disabled={containerFields.length === 0}>Submit</Button>
+          <Button type="submit" disabled={containerFields.length === 0 || isSubmitting}>
+            {isSubmitting ? "Submitting..." : "Submit"}
+          </Button>
         </form>
       </Form>
       
@@ -420,24 +435,13 @@ export default function ReceiveStorePage() {
   );
 }
 
-/**
- * Props for the ItemArray component.
- * @property {number} containerIndex - The index of the parent container in the form.
- * @property {Control<ReceiveFormValues>} control - The React Hook Form control object.
- */
 type ItemArrayProps = {
   containerIndex: number;
   control: Control<ReceiveFormValues>;
+  jobItems: BomItem[];
 };
 
-/**
- * A component that manages a dynamic array of item input fields for a single container.
- * It allows users to add or remove items from the container they are logging.
- *
- * @param {ItemArrayProps} props - The props for the component.
- * @returns {JSX.Element} The rendered item array section.
- */
-function ItemArray({ containerIndex, control }: ItemArrayProps) {
+function ItemArray({ containerIndex, control, jobItems }: ItemArrayProps) {
   const { fields, append, remove } = useFieldArray({
     control,
     name: `containers.${containerIndex}.items`
@@ -446,68 +450,102 @@ function ItemArray({ containerIndex, control }: ItemArrayProps) {
   const { formState: { errors } } = useFormContext<ReceiveFormValues>();
   const containerErrors = errors.containers?.[containerIndex] as any;
 
-
   return (
     <div className="space-y-4">
-        <div className="flex items-center justify-between">
-            <h3 className="font-medium">Items</h3>
-             <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => append({ description: '', quantity: 1 })}
-              >
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Item
-            </Button>
-        </div>
-        {containerErrors?.items && !containerErrors.items.root && (
-            <p className="text-sm font-medium text-destructive">{containerErrors.items.message}</p>
-        )}
+      <div className="flex items-center justify-between">
+        <h3 className="font-medium">Items</h3>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => append({ description: '', quantity: 1 })}
+        >
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Add Item
+        </Button>
+      </div>
+      {containerErrors?.items && !containerErrors.items.root && (
+        <p className="text-sm font-medium text-destructive">{containerErrors.items.message}</p>
+      )}
 
       {fields.map((item, itemIndex) => (
         <div key={item.id} className="grid grid-cols-1 gap-4 items-start sm:grid-cols-[1fr_auto_auto] sm:gap-2">
-            <FormField
-                control={control}
-                name={`containers.${containerIndex}.items.${itemIndex}.description`}
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel className={cn(itemIndex !== 0 && "sr-only")}>Description/Part Number</FormLabel>
+          <FormField
+            control={control}
+            name={`containers.${containerIndex}.items.${itemIndex}.description`}
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel className={cn(itemIndex !== 0 && "sr-only")}>Description/Part Number</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
                     <FormControl>
-                        <Input placeholder="Item description or part number" {...field} />
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn("w-full justify-between", !field.value && "text-muted-foreground")}
+                      >
+                        {field.value || "Select or type an item"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
                     </FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-            <FormField
-                control={control}
-                name={`containers.${containerIndex}.items.${itemIndex}.quantity`}
-                render={({ field }) => (
-                <FormItem>
-                     <FormLabel className={cn(itemIndex !== 0 && "sr-only")}>Quantity</FormLabel>
-                    <FormControl>
-                        <Input type="number" placeholder="1" {...field} className="w-24"/>
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-            <div className={cn("flex items-end h-full", itemIndex !== 0 && "sm:pt-8")}>
-                 <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-destructive"
-                    onClick={() => remove(itemIndex)}
-                    disabled={fields.length <= 1}
-                >
-                    <Trash2 className="h-4 w-4" />
-                     <span className="sr-only">Remove Item</span>
-                </Button>
-            </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command shouldFilter={true}>
+                      <CommandInput placeholder="Search item..." />
+                      <CommandList>
+                        <CommandEmpty>No item found. You can add a new one.</CommandEmpty>
+                        <CommandGroup>
+                          {jobItems.map((jobItem) => (
+                            <CommandItem
+                              key={jobItem.id}
+                              value={jobItem.description}
+                              onSelect={(currentValue) => {
+                                field.onChange(currentValue === field.value ? "" : currentValue);
+                              }}
+                            >
+                              <Check
+                                className={cn("mr-2 h-4 w-4", field.value === jobItem.description ? "opacity-100" : "opacity-0")}
+                              />
+                              {jobItem.description}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name={`containers.${containerIndex}.items.${itemIndex}.quantity`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className={cn(itemIndex !== 0 && "sr-only")}>Quantity</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="1" {...field} className="w-24" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <div className={cn("flex items-end h-full", itemIndex !== 0 && "sm:pt-8")}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={() => remove(itemIndex)}
+              disabled={fields.length <= 1}
+            >
+              <Trash2 className="h-4 w-4" />
+              <span className="sr-only">Remove Item</span>
+            </Button>
+          </div>
         </div>
       ))}
     </div>
-  )
+  );
 }
