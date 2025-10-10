@@ -108,15 +108,24 @@ export default function ReceiveStorePage() {
 
   const occupiedShelves = useMemo(() => {
     const occupied = new Set<string>();
-    boms?.forEach(bom => {
-      bom.items.forEach(item => {
-        if (item.onHandQuantity > 0) {
-          item.shelfLocations.forEach(loc => occupied.add(loc));
-        }
+    if (boms) {
+      boms.forEach(bom => {
+        bom.items.forEach(item => {
+          if (item.onHandQuantity > 0) {
+            item.shelfLocations.forEach(loc => occupied.add(loc));
+          }
+        });
       });
-    });
+    }
+    if (watchedContainers) {
+       watchedContainers.forEach(container => {
+        if(container.shelfLocation) {
+            occupied.add(container.shelfLocation);
+        }
+       });
+    }
     return occupied;
-  }, [boms]);
+  }, [boms, watchedContainers]);
 
   const availableShelves = useMemo(() => {
     if (!allLocations) return [];
@@ -460,7 +469,7 @@ export default function ReceiveStorePage() {
                         <ShelfLocationSelector
                           control={form.control}
                           containerIndex={containerIndex}
-                          allAvailableShelves={availableShelves}
+                          allLocations={allLocations || []}
                           watchedContainers={watchedContainers}
                           isLoading={areLocationsLoading}
                         />
@@ -763,17 +772,18 @@ function ImageUploadField({ control, containerIndex }: { control: Control<Receiv
 type ShelfLocationSelectorProps = {
   control: Control<ReceiveFormValues>;
   containerIndex: number;
-  allAvailableShelves: Location[];
+  allLocations: Location[];
   watchedContainers: Partial<ReceiveFormValues['containers']>;
   isLoading: boolean;
 };
 
-function ShelfLocationSelector({ control, containerIndex, allAvailableShelves, watchedContainers, isLoading }: ShelfLocationSelectorProps) {
+function ShelfLocationSelector({ control, containerIndex, allLocations, watchedContainers, isLoading }: ShelfLocationSelectorProps) {
   const { getValues } = useFormContext<ReceiveFormValues>();
   const currentSelection = getValues(`containers.${containerIndex}.shelfLocation`);
 
+  // This logic is now cleaner and safer, preventing duplicate keys.
   const selectableShelves = useMemo(() => {
-    // Get shelves selected by OTHER containers in the form
+    // Shelves selected by OTHER containers in this form.
     const selectedByOthers = new Set(
       watchedContainers
         .filter((_, index) => index !== containerIndex)
@@ -781,19 +791,31 @@ function ShelfLocationSelector({ control, containerIndex, allAvailableShelves, w
         .filter((loc): loc is string => !!loc)
     );
 
-    // Filter available shelves by removing ones selected by other containers
-    let filtered = allAvailableShelves.filter(loc => !selectedByOthers.has(loc.name));
+    // Shelves that are already occupied by items in the database.
+    const occupiedInDB = new Set(
+        allLocations.filter(loc => loc.items && loc.items.length > 0).map(loc => loc.name)
+    );
 
-    // If the current container has a selection that is NOT in the filtered list
-    // (e.g., it was an occupied shelf), add it to the list so it can be displayed.
-    if (currentSelection && !filtered.some(loc => loc.name === currentSelection)) {
-      const currentShelfObject = allAvailableShelves.find(loc => loc.name === currentSelection) || { id: currentSelection, name: currentSelection, items: [] };
-      filtered = [currentShelfObject, ...filtered];
+    // Filter all locations to get the ones that are truly available.
+    const available = allLocations.filter(loc => 
+        !selectedByOthers.has(loc.name) && 
+        !occupiedInDB.has(loc.name)
+    );
+
+    // If the current dropdown has a value selected that is NOT in the available list
+    // (e.g., it's an occupied shelf that was its original value), we add it back
+    // just for this dropdown so it can be displayed.
+    const currentIsUnavailable = currentSelection && !available.some(loc => loc.name === currentSelection);
+    if (currentIsUnavailable) {
+        const currentShelfObject = allLocations.find(loc => loc.name === currentSelection);
+        if (currentShelfObject) {
+            // Add to the top of the list
+            return [currentShelfObject, ...available].sort((a,b) => a.name.localeCompare(b.name));
+        }
     }
     
-    return filtered;
-
-  }, [allAvailableShelves, watchedContainers, containerIndex, currentSelection]);
+    return available.sort((a,b) => a.name.localeCompare(b.name));
+  }, [allLocations, watchedContainers, containerIndex, currentSelection]);
 
   return (
     <FormField
@@ -828,5 +850,3 @@ function ShelfLocationSelector({ control, containerIndex, allAvailableShelves, w
     />
   );
 }
-
-    
