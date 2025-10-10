@@ -32,7 +32,7 @@ import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import Image from 'next/image';
 import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { collection, collectionGroup, query, runTransaction, doc, where, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, collectionGroup, query, runTransaction, doc, where, getDocs } from 'firebase/firestore';
 import { Bom, Category, Location, BomItem, Container } from '@/lib/data';
 import { useRouter } from 'next/navigation';
 
@@ -435,7 +435,7 @@ export default function ReceiveStorePage() {
                                 </FormControl>
                                 <SelectContent>
                                     {uniqueLocations.map(location => (
-                                    <SelectItem key={`${containerIndex}-${location.id}`} value={location.name}>{location.name}</SelectItem>
+                                      <SelectItem key={`${containerIndex}-${location.id}`} value={location.name}>{location.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                                 </Select>
@@ -526,6 +526,7 @@ function ItemArray({ containerIndex, control, jobItems }: ItemArrayProps) {
   
   const { register, formState: { errors } } = useFormContext<ReceiveFormValues>();
   const containerErrors = errors.containers?.[containerIndex] as any;
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -553,7 +554,7 @@ function ItemArray({ containerIndex, control, jobItems }: ItemArrayProps) {
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel className={cn(itemIndex !== 0 && "sr-only")}>Description/Part Number</FormLabel>
-                <Popover>
+                <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button
@@ -587,6 +588,7 @@ function ItemArray({ containerIndex, control, jobItems }: ItemArrayProps) {
                               value={jobItem.description}
                               onSelect={(currentValue) => {
                                 field.onChange(currentValue === field.value ? "" : currentValue);
+                                setPopoverOpen(false);
                               }}
                             >
                               <Check
@@ -636,3 +638,4 @@ function ItemArray({ containerIndex, control, jobItems }: ItemArrayProps) {
     </div>
   );
 }
+
