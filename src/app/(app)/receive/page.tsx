@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, ChangeEvent } from 'react';
+import { useState, useMemo, ChangeEvent, KeyboardEvent } from 'react';
 import { PageHeader } from '@/components/page-header';
 import {
   Form,
@@ -723,7 +723,7 @@ function ImageUploadField({ control, containerIndex }: { control: Control<Receiv
     <FormField
       control={control}
       name={`containers.${containerIndex}.imageFile`}
-      render={({ field: { value, onChange, ...fieldProps } }) => (
+      render={({ field: { onChange, ...fieldProps } }) => (
         <FormItem>
           <FormLabel>Container Image</FormLabel>
           <div className="flex items-center gap-4">
