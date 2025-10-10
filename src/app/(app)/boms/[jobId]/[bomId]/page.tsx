@@ -1,7 +1,7 @@
 
 'use client';
 
-import { use, useEffect } from 'react';
+import { use, useEffect, useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import {
   Card,
@@ -32,7 +32,6 @@ import { useFirestore, useMemoFirebase } from '@/firebase';
 import { Bom } from '@/lib/data';
 import { useCollection } from '@/firebase';
 import { collection } from 'firebase/firestore';
-import { Category } from '@/lib/data';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -73,6 +72,7 @@ export default function BomDetailPage(props: BomDetailPageProps) {
   const { jobId, bomId } = props.params;
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const bomRef = useMemoFirebase(
     () => (firestore && jobId && bomId ? doc(firestore, 'jobs', jobId, 'boms', bomId) : null),
@@ -85,17 +85,17 @@ export default function BomDetailPage(props: BomDetailPageProps) {
     () => (firestore ? collection(firestore, 'workCategories') : null),
     [firestore]
   );
-  const { data: categories, isLoading: areCategoriesLoading } = useCollection<Category>(categoriesQuery);
+  const { data: categories, isLoading: areCategoriesLoading } = useCollection<Bom>(categoriesQuery);
   
   // This effect will watch for the bom to disappear after deletion
   // and redirect if it's no longer loading but gone.
   useEffect(() => {
-    if (!isBomLoading && !bom && !error) {
+    if (!isBomLoading && !bom && !error && !isDeleting) {
       // If loading is done, there's no bom, and no error,
       // it means it was likely deleted.
       router.push('/boms');
     }
-  }, [isBomLoading, bom, router, error]);
+  }, [isBomLoading, bom, router, error, isDeleting]);
   
   if (error) {
     // If there's an error (e.g. permissions), it's handled by the global error boundary
@@ -113,22 +113,27 @@ export default function BomDetailPage(props: BomDetailPageProps) {
   
   const handleDelete = () => {
     if (!bomRef) return;
+    
+    setIsDeleting(true); // Set deleting state to true
+    
     deleteDocumentNonBlocking(bomRef);
+    
     toast({
       title: 'Deletion Started',
       description: `The BOM "${bom?.jobName}" is being deleted.`,
     });
+    
     // Immediately navigate away to prevent 404/rendering issues
     router.push('/boms');
   };
 
-  if (isBomLoading || areCategoriesLoading) {
+  if (isBomLoading || areCategoriesLoading || isDeleting) {
     return <div>Loading BOM details...</div>;
   }
   
   if (!bom) {
-    // This will now mostly be seen briefly during the redirect after deletion.
-    // Or if the BOM was invalid to begin with.
+    // This will now only be hit if the BOM was invalid to begin with,
+    // not during deletion.
     notFound();
     return null; // notFound() throws an error so this is for type safety
   }
