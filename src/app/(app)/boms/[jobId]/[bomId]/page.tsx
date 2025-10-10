@@ -44,6 +44,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { use } from 'react';
 
 
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
@@ -55,7 +56,7 @@ const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.i
  * @property {string} params.bomId - The ID of the Bill of Materials to display.
  */
 type BomDetailPageProps = {
-  params: { jobId: string; bomId: string };
+  params: Promise<{ jobId: string; bomId: string }>;
 };
 
 /**
@@ -66,10 +67,10 @@ type BomDetailPageProps = {
  * @param {BomDetailPageProps} props - The props for the component.
  * @returns {JSX.Element} The rendered BOM detail page.
  */
-export default function BomDetailPage({ params }: BomDetailPageProps) {
+export default function BomDetailPage(props: BomDetailPageProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { jobId, bomId } = params;
+  const { jobId, bomId } = use(props.params);
   const firestore = useFirestore();
 
   const bomRef = useMemoFirebase(

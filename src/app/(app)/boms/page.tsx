@@ -55,7 +55,7 @@ export default function BomsPage() {
    * Navigates the user to the detail page for the selected BOM.
    * @param {Bom} bom - The BOM object.
    */
-  const handleRowClick = async (bom: Bom) => {
+  const handleRowClick = (bom: Bom) => {
     router.push(`/boms/${bom.jobNumber}/${bom.id}`);
   };
 

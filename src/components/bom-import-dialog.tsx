@@ -72,6 +72,7 @@ export function BomImportDialog() {
       return;
     }
     
+    // Read Job Info ONLY from the first row
     const firstRow = parsedRows[0];
     const jobInfo = {
       jobNumber: firstRow["Job Number"] || "N/A",
@@ -81,17 +82,24 @@ export function BomImportDialog() {
       workCategoryId: firstRow["Category"] || "cat-3",
     };
 
+    // Map ALL rows to items, but only take description and quantity
     const bomItems = parsedRows.map(row => ({
       description: row["Description/Part Number"] || row["Part Number"] || "Unknown Item",
-      orderBomQuantity: bomType === 'order' ? (parseInt(row["Quantity"], 10) || 0) : 0,
-      designBomQuantity: bomType === 'design' ? (parseInt(row["Quantity"], 10) || 0) : 0,
-    })).filter(item => item.orderBomQuantity > 0 || item.designBomQuantity > 0);
+      quantity: parseInt(row["Quantity"], 10) || 0,
+    }))
+    .filter(item => item.description !== "Unknown Item" && item.quantity > 0)
+    .map(item => ({
+      description: item.description,
+      orderBomQuantity: bomType === 'order' ? item.quantity : 0,
+      designBomQuantity: bomType === 'design' ? item.quantity : 0,
+    }));
+    
 
     if (bomItems.length === 0) {
         toast({
             variant: "destructive",
             title: "No Items Found",
-            description: "No items with valid quantities were found in the file."
+            description: "No items with valid descriptions and quantities were found in the file."
         });
         return;
     }
@@ -314,7 +322,5 @@ export function BomImportDialog() {
     </>
   )
 }
-
-    
 
     
