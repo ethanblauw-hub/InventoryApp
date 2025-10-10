@@ -99,6 +99,7 @@ export default function ReceiveStorePage() {
   
   const watchedContainers = form.watch('containers');
   const selectedJobNumber = form.watch('jobNumber');
+  
 
   const itemsForSelectedJob = useMemo(() => {
     if (!selectedJobNumber || !boms) return [];
@@ -748,6 +749,8 @@ type ShelfLocationSelectorProps = {
 function ShelfLocationSelector({ control, containerIndex, allLocations, watchedContainers, isLoading, boms }: ShelfLocationSelectorProps) {
   const { getValues } = useFormContext<ReceiveFormValues>();
 
+  const shelfSelections = (watchedContainers || []).map(c => c?.shelfLocation ?? '');
+
   const selectableShelves = useMemo(() => {
     // 1. Find all shelves occupied in the database
     const occupiedInDB = new Set<string>();
@@ -788,9 +791,13 @@ function ShelfLocationSelector({ control, containerIndex, allLocations, watchedC
     }
     
     // 6. Sort and return
-    return options.sort((a, b) => a.name.localeCompare(b.name));
+    const deduped = Array.from(
+      new Map(options.map(opt => [opt.name, opt])).values()
+    );
 
-  }, [allLocations, watchedContainers, containerIndex, boms, getValues]);
+    return deduped.sort((a, b) => a.name.localeCompare(b.name));
+
+  }, [allLocations, containerIndex, boms, getValues, JSON.stringify(shelfSelections)]);
 
   return (
     <FormField
