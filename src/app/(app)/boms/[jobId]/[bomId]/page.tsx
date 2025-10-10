@@ -56,7 +56,7 @@ const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.i
  * @property {string} params.bomId - The ID of the Bill of Materials to display.
  */
 type BomDetailPageProps = {
-  params: { jobId: string; bomId: string };
+  params: Promise<{ jobId: string; bomId: string }>;
 };
 
 /**
@@ -69,7 +69,7 @@ type BomDetailPageProps = {
  */
 export default function BomDetailPage(props: BomDetailPageProps) {
   const router = useRouter();
-  const { jobId, bomId } = props.params;
+  const { jobId, bomId } = use(props.params);
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
