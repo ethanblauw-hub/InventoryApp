@@ -734,6 +734,7 @@ function ImageUploadField({ control, containerIndex }: { control: Control<Receiv
                         <span>{file ? "Change" : "Upload"} Photo</span>
                         <Input
                             {...fieldProps}
+                            value={''}
                             type="file"
                             accept="image/*"
                             className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
