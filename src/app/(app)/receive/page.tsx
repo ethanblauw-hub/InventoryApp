@@ -106,34 +106,6 @@ export default function ReceiveStorePage() {
     return bom ? bom.items : [];
   }, [selectedJobNumber, boms]);
 
-  const occupiedShelves = useMemo(() => {
-    const occupied = new Set<string>();
-    if (boms) {
-      boms.forEach(bom => {
-        bom.items.forEach(item => {
-          if (item.onHandQuantity > 0) {
-            item.shelfLocations.forEach(loc => occupied.add(loc));
-          }
-        });
-      });
-    }
-    if (watchedContainers) {
-       watchedContainers.forEach(container => {
-        if(container.shelfLocation) {
-            occupied.add(container.shelfLocation);
-        }
-       });
-    }
-    return occupied;
-  }, [boms, watchedContainers]);
-
-  const availableShelves = useMemo(() => {
-    if (!allLocations) return [];
-    return allLocations
-      .filter(loc => !occupiedShelves.has(loc.name))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [allLocations, occupiedShelves]);
-
   const { fields: containerFields, append: appendContainer, remove: removeContainer } = useFieldArray({
     control: form.control,
     name: "containers",
@@ -164,26 +136,20 @@ export default function ReceiveStorePage() {
       await runTransaction(firestore, async (transaction) => {
         let bomDocRef;
         let transactionalBomDoc: DocumentSnapshot<DocumentData> | null = null;
+        const bomsCollectionQuery = query(
+          collectionGroup(firestore, 'boms'),
+          where('jobNumber', '==', values.jobNumber)
+        );
+        const bomsSnapshot = await getDocs(bomsCollectionQuery);
 
-        // --- READS FIRST ---
-        if (values.jobNumber) {
-          const bomsCollectionQuery = query(
-            collectionGroup(firestore, 'boms'),
-            where('jobNumber', '==', values.jobNumber)
-          );
-          // This read must happen before any writes in the transaction.
-          const bomsSnapshot = await getDocs(bomsCollectionQuery);
-
-          if (!bomsSnapshot.empty) {
-            bomDocRef = bomsSnapshot.docs[0].ref;
-            transactionalBomDoc = await transaction.get(bomDocRef);
-            if (!transactionalBomDoc.exists()) {
-              throw new Error(`BOM for job ${values.jobNumber} not found inside transaction!`);
-            }
+        if (!bomsSnapshot.empty) {
+          bomDocRef = bomsSnapshot.docs[0].ref;
+          transactionalBomDoc = await transaction.get(bomDocRef);
+          if (!transactionalBomDoc.exists()) {
+            throw new Error(`BOM for job ${values.jobNumber} not found inside transaction!`);
           }
         }
 
-        // --- WRITES SECOND ---
         values.containers.forEach((container, index) => {
           const containerData: Omit<Container, 'id' | 'receiptDate'> = {
             jobNumber: values.jobNumber,
@@ -472,6 +438,7 @@ export default function ReceiveStorePage() {
                           allLocations={allLocations || []}
                           watchedContainers={watchedContainers}
                           isLoading={areLocationsLoading}
+                          boms={boms || []}
                         />
                          <FormField
                             control={form.control}
@@ -775,47 +742,55 @@ type ShelfLocationSelectorProps = {
   allLocations: Location[];
   watchedContainers: Partial<ReceiveFormValues['containers']>;
   isLoading: boolean;
+  boms: Bom[];
 };
 
-function ShelfLocationSelector({ control, containerIndex, allLocations, watchedContainers, isLoading }: ShelfLocationSelectorProps) {
+function ShelfLocationSelector({ control, containerIndex, allLocations, watchedContainers, isLoading, boms }: ShelfLocationSelectorProps) {
   const { getValues } = useFormContext<ReceiveFormValues>();
-  const currentSelection = getValues(`containers.${containerIndex}.shelfLocation`);
 
-  // This logic is now cleaner and safer, preventing duplicate keys.
   const selectableShelves = useMemo(() => {
-    // Shelves selected by OTHER containers in this form.
-    const selectedByOthers = new Set(
+    // 1. Find all shelves occupied in the database
+    const occupiedInDB = new Set<string>();
+    boms.forEach(bom => {
+      bom.items.forEach(item => {
+        if (item.onHandQuantity > 0) {
+          item.shelfLocations.forEach(loc => occupiedInDB.add(loc));
+        }
+      });
+    });
+
+    // 2. Find all shelves selected by OTHER containers in this form
+    const selectedByOthers = new Set<string>(
       watchedContainers
         .filter((_, index) => index !== containerIndex)
         .map(c => c.shelfLocation)
         .filter((loc): loc is string => !!loc)
     );
 
-    // Shelves that are already occupied by items in the database.
-    const occupiedInDB = new Set(
-        allLocations.filter(loc => loc.items && loc.items.length > 0).map(loc => loc.name)
-    );
+    // 3. Create a Map to ensure uniqueness. Start with all locations.
+    const locationMap = new Map<string, Location>();
+    allLocations.forEach(loc => locationMap.set(loc.name, loc));
 
-    // Filter all locations to get the ones that are truly available.
-    const available = allLocations.filter(loc => 
-        !selectedByOthers.has(loc.name) && 
-        !occupiedInDB.has(loc.name)
-    );
+    // 4. Get the current selection for THIS dropdown
+    const currentSelection = getValues(`containers.${containerIndex}.shelfLocation`);
 
-    // If the current dropdown has a value selected that is NOT in the available list
-    // (e.g., it's an occupied shelf that was its original value), we add it back
-    // just for this dropdown so it can be displayed.
-    const currentIsUnavailable = currentSelection && !available.some(loc => loc.name === currentSelection);
-    if (currentIsUnavailable) {
-        const currentShelfObject = allLocations.find(loc => loc.name === currentSelection);
-        if (currentShelfObject) {
-            // Add to the top of the list
-            return [currentShelfObject, ...available].sort((a,b) => a.name.localeCompare(b.name));
-        }
+    // 5. Build the final list of options
+    const options: Location[] = [];
+    for (const location of allLocations) {
+      const isOccupied = occupiedInDB.has(location.name);
+      const isSelectedByOther = selectedByOthers.has(location.name);
+
+      // Add the location if it's the one currently selected for this dropdown,
+      // OR if it's completely free.
+      if (location.name === currentSelection || (!isOccupied && !isSelectedByOther)) {
+        options.push(location);
+      }
     }
     
-    return available.sort((a,b) => a.name.localeCompare(b.name));
-  }, [allLocations, watchedContainers, containerIndex, currentSelection]);
+    // 6. Sort and return
+    return options.sort((a, b) => a.name.localeCompare(b.name));
+
+  }, [allLocations, watchedContainers, containerIndex, boms, getValues]);
 
   return (
     <FormField
@@ -832,7 +807,7 @@ function ShelfLocationSelector({ control, containerIndex, allLocations, watchedC
             </FormControl>
             <SelectContent>
               {selectableShelves.map(location => (
-                <SelectItem key={`${containerIndex}-${location.id}`} value={location.name}>
+                <SelectItem key={location.id} value={location.name}>
                   {location.name}
                 </SelectItem>
               ))}
