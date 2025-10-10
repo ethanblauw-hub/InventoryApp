@@ -1,4 +1,3 @@
-
 "use client"
 import { useState } from "react";
 import { Button } from "@/components/ui/button"
@@ -11,16 +10,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -28,52 +17,40 @@ import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
 import * as XLSX from 'xlsx';
-import { useFirestore } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, writeBatch } from "firebase/firestore";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { BomItem } from "@/lib/data";
+import { Category } from "@/lib/data";
+import { BomForm, BomFormValues } from "./bom-form";
 
 type BomType = "order" | "design";
 
-type ParsedBom = {
-  jobInfo: {
-    jobNumber: string;
-    jobName: string;
-    projectManager: string;
-    primaryFieldLeader: string;
-    workCategoryId: string;
-  };
-  items: Pick<BomItem, 'description' | 'orderBomQuantity' | 'designBomQuantity'>[];
-};
-
 export function BomImportDialog() {
   const [open, setOpen] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [bomType, setBomType] = useState<BomType>("order");
-  const [parsedBom, setParsedBom] = useState<ParsedBom | null>(null);
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [parsedBom, setParsedBom] = useState<Partial<BomFormValues> | null>(null);
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      setFile(event.target.files[0]);
-      setParsedBom(null); // Reset parsed data when file changes
-    }
-  };
+  const categoriesQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'workCategories') : null),
+    [firestore]
+  );
+  const { data: categories, isLoading: areCategoriesLoading } = useCollection<Category>(categoriesQuery);
 
   const processAndShowConfirm = (data: (string | number)[][]) => {
-     if (!data || data.length < 3) {
+    if (!data || data.length < 3) {
       toast({
         variant: "destructive",
         title: "Invalid File Format",
-        description: "The file must contain a job info section, a blank line, and an item section.",
+        description: "The file must contain a job info header, an item list header, and at least one item, separated by a blank line.",
       });
       return;
     }
 
     try {
-      const blankRowIndex = data.findIndex(row => row.every(cell => cell === null || cell === ''));
+      const blankRowIndex = data.findIndex(row => row.every(cell => cell === null || cell === '' || cell === undefined));
       
       if (blankRowIndex === -1) {
         throw new Error("Could not find a blank line separator between job info and item list.");
@@ -81,6 +58,7 @@ export function BomImportDialog() {
 
       // --- PARSE JOB INFO ---
       const jobInfoRows = data.slice(0, blankRowIndex);
+      if(jobInfoRows.length < 2) throw new Error("Job info section is incomplete.");
       const jobInfoHeader = jobInfoRows[0].map(h => h.toString());
       const jobInfoData = jobInfoRows[1];
       
@@ -89,16 +67,17 @@ export function BomImportDialog() {
         return index !== -1 ? jobInfoData[index]?.toString() : undefined;
       };
 
-      const jobInfo = {
-        jobNumber: getColumnValue("Job Number") || "N/A",
-        jobName: getColumnValue("Job Name") || "N/A",
-        projectManager: getColumnValue("PM") || "N/A",
-        primaryFieldLeader: getColumnValue("Primary Field Leader") || "N/A",
-        workCategoryId: getColumnValue("Category") || "cat-general", // Default category
+      const jobInfo: Partial<BomFormValues> = {
+        jobNumber: getColumnValue("Job Number"),
+        jobName: getColumnValue("Job Name"),
+        projectManager: getColumnValue("PM"),
+        primaryFieldLeader: getColumnValue("Primary Field Leader"),
+        workCategoryId: getColumnValue("Category"),
       };
-      
+
       // --- PARSE ITEM LIST ---
       const itemRows = data.slice(blankRowIndex + 1);
+      if(itemRows.length < 2) throw new Error("Item list section is incomplete or missing.");
       const itemHeader = itemRows[0].map(h => h.toString());
       const itemDataRows = itemRows.slice(1);
       
@@ -110,21 +89,16 @@ export function BomImportDialog() {
       }
       
       const bomItems = itemDataRows.map(row => {
-        const description = row[partNumberIndex]?.toString() || "Unknown Item";
+        const description = row[partNumberIndex]?.toString() || "";
         const quantity = parseInt(row[quantityIndex]?.toString() || '0', 10);
-        
-        return {
-          description: description,
-          orderBomQuantity: bomType === 'order' ? quantity : 0,
-          designBomQuantity: bomType === 'design' ? quantity : 0,
-        };
-      }).filter(item => item.description !== "Unknown Item" && (item.orderBomQuantity > 0 || item.designBomQuantity > 0));
+        return { description, quantity };
+      }).filter(item => item.description && item.quantity > 0);
 
       if (bomItems.length === 0) {
         throw new Error("No valid items found in the item list section of the file.");
       }
 
-      setParsedBom({ jobInfo, items: bomItems });
+      setParsedBom({ ...jobInfo, items: bomItems });
       setIsConfirmOpen(true);
     } catch (error: any) {
       toast({
@@ -135,27 +109,26 @@ export function BomImportDialog() {
     }
   };
 
-  const handleFinalSubmit = async () => {
-    if (!parsedBom || !firestore) {
-      toast({ variant: "destructive", title: "Error", description: "No BOM data to submit." });
+  const handleFinalSubmit = async (values: BomFormValues) => {
+    if (!firestore) {
+      toast({ variant: "destructive", title: "Error", description: "Database not available." });
       return;
     }
 
-    const { jobInfo, items } = parsedBom;
     const now = new Date().toISOString();
 
     try {
       const batch = writeBatch(firestore);
-      const jobDocRef = doc(firestore, 'jobs', jobInfo.jobNumber);
-      batch.set(jobDocRef, { id: jobInfo.jobNumber, name: jobInfo.jobName, description: `Job ${jobInfo.jobName}` }, { merge: true });
+      const jobDocRef = doc(firestore, 'jobs', values.jobNumber);
+      batch.set(jobDocRef, { id: values.jobNumber, name: values.jobName, description: `Job ${values.jobName}` }, { merge: true });
 
       const bomColRef = collection(jobDocRef, 'boms');
       const bomDocRef = doc(bomColRef);
 
       const newBomDocument = {
+        ...values,
         id: bomDocRef.id,
-        ...jobInfo,
-        items: items.map(item => ({
+        items: values.items.map(item => ({
           ...item,
           id: `item-${Math.random().toString(36).substr(2, 9)}`,
           onHandQuantity: 0,
@@ -173,7 +146,7 @@ export function BomImportDialog() {
       
       toast({
         title: "BOM Imported Successfully",
-        description: `BOM for job ${jobInfo.jobName} has been created.`,
+        description: `BOM for job ${values.jobName} has been created.`,
       });
       resetState();
     } catch (error: any) {
@@ -193,7 +166,7 @@ export function BomImportDialog() {
     setFile(null);
     setParsedBom(null);
     setIsConfirmOpen(false);
-    // Consider also resetting the input field value if it's uncontrolled
+    setOpen(false);
     const fileInput = document.getElementById("bom-file") as HTMLInputElement;
     if(fileInput) fileInput.value = "";
   }
@@ -212,9 +185,7 @@ export function BomImportDialog() {
       try {
         let sheetData: (string | number)[][] = [];
         if (fileExtension === 'csv' && typeof data === 'string') {
-          const parsed = Papa.parse<(string | number)[]>(data, {
-            skipEmptyLines: false, // Keep blank lines as they are separators
-          });
+          const parsed = Papa.parse<(string | number)[]>(data, { skipEmptyLines: false });
           sheetData = parsed.data;
         } else if ((fileExtension === 'xlsx' || fileExtension === 'xls') && data instanceof ArrayBuffer) {
             const workbook = XLSX.read(data, { type: 'array' });
@@ -227,11 +198,7 @@ export function BomImportDialog() {
         processAndShowConfirm(sheetData);
       } catch (error: any) {
         console.error("Error parsing file:", error);
-        toast({
-            variant: "destructive",
-            title: "Parsing Failed",
-            description: error.message,
-        });
+        toast({ variant: "destructive", title: "Parsing Failed", description: error.message });
       }
     };
     
@@ -248,9 +215,14 @@ export function BomImportDialog() {
     }
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    setFile(selectedFile || null);
+  };
+
   return (
     <>
-      <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) resetState(); }}>
+      <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) resetState(); else setOpen(true); }}>
         <DialogTrigger asChild>
           <Button>
             <Upload className="mr-2" />
@@ -261,7 +233,7 @@ export function BomImportDialog() {
           <DialogHeader>
             <DialogTitle>Import Bill of Materials</DialogTitle>
             <DialogDescription>
-              Select a .csv, .xls, or .xlsx file to import. Specify if it's an Order BOM or Design BOM.
+              Select a .csv or .xlsx file to import. Specify if it's an Order BOM or Design BOM.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -284,49 +256,33 @@ export function BomImportDialog() {
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleImport} disabled={!file}>Review &amp; Import</Button>
+            <Button onClick={handleImport} disabled={!file || areCategoriesLoading}>
+              {areCategoriesLoading ? "Loading..." : "Review & Import"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       
-      {parsedBom && (
-        <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-            <AlertDialogContent className="max-w-3xl">
-                 <AlertDialogHeader>
-                    <AlertDialogTitle>Confirm BOM Import</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Please review the details for the new <strong>{bomType.toUpperCase()} BOM</strong> for job <strong>{parsedBom.jobInfo.jobName} ({parsedBom.jobInfo.jobNumber})</strong>.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="mt-4 max-h-80 overflow-auto rounded-md border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Item Description</TableHead>
-                                <TableHead className="text-right">Quantity</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {parsedBom.items.map((item, index) => (
-                                <TableRow key={index}>
-                                    <TableCell>{item.description}</TableCell>
-                                    <TableCell className="text-right font-mono">
-                                      {bomType === 'order' ? item.orderBomQuantity : item.designBomQuantity}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleFinalSubmit}>Submit</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-      )}
+      <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+            <DialogHeader>
+                <DialogTitle>Review and Edit BOM Import</DialogTitle>
+                <DialogDescription>
+                    Review and edit the parsed data below before saving the new <strong>{bomType.toUpperCase()} BOM</strong>.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="flex-grow overflow-auto pr-6">
+              {parsedBom && !areCategoriesLoading && (
+                  <BomForm 
+                    onSubmit={handleFinalSubmit}
+                    categories={categories || []}
+                    defaultValues={parsedBom}
+                    bomType={bomType}
+                  />
+              )}
+            </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
-
-    

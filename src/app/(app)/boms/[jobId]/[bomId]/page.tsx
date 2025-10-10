@@ -1,4 +1,3 @@
-
 'use client';
 
 import { PageHeader } from '@/components/page-header';
@@ -24,7 +23,7 @@ import { ArrowLeft, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { notFound, useRouter } from 'next/navigation';
-import { UpdateBOMDialog } from '@/components/update-bom-dialog';
+import { EditBOMDialog } from '@/components/edit-bom-dialog';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { useFirestore, useMemoFirebase } from '@/firebase';
@@ -44,7 +43,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { use } from 'react';
+import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 
 const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.id === imageId);
@@ -56,7 +55,7 @@ const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.i
  * @property {string} params.bomId - The ID of the Bill of Materials to display.
  */
 type BomDetailPageProps = {
-  params: Promise<{ jobId: string; bomId: string }>;
+  params: { jobId: string; bomId: string };
 };
 
 /**
@@ -67,10 +66,10 @@ type BomDetailPageProps = {
  * @param {BomDetailPageProps} props - The props for the component.
  * @returns {JSX.Element} The rendered BOM detail page.
  */
-export default function BomDetailPage(props: BomDetailPageProps) {
+export default function BomDetailPage({ params }: BomDetailPageProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { jobId, bomId } = use(props.params);
+  const { jobId, bomId } = params;
   const firestore = useFirestore();
 
   const bomRef = useMemoFirebase(
@@ -91,21 +90,12 @@ export default function BomDetailPage(props: BomDetailPageProps) {
 
   const handleDelete = async () => {
     if (!bomRef) return;
-    try {
-      await deleteDoc(bomRef);
-      toast({
-        title: "BOM Deleted",
-        description: `The BOM "${bom?.jobName}" has been successfully deleted.`,
-      });
-      router.push('/boms');
-    } catch (error) {
-      console.error("Error deleting BOM:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to delete the BOM. Please try again.",
-      });
-    }
+    deleteDocumentNonBlocking(bomRef);
+    toast({
+      title: "BOM Deletion Initiated",
+      description: `The BOM "${bom?.jobName}" is being deleted.`,
+    });
+    router.push('/boms');
   };
 
 
@@ -140,7 +130,7 @@ export default function BomDetailPage(props: BomDetailPageProps) {
               Back to All BOMs
             </Link>
           </Button>
-          <UpdateBOMDialog bom={bom} />
+          <EditBOMDialog bom={bom} />
           {isAdmin && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
