@@ -14,7 +14,7 @@ import {
   useFormContext,
 } from '@/components/ui/form';
 import QRcode from 'qrcode';
-import { useForm, useFieldArray, Control } from 'react-hook-form';
+import { useForm, useFieldArray, Control, UseFieldArrayRemove } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -262,7 +262,7 @@ export default function ReceiveStorePage() {
             <CardHeader>
               <CardTitle>Primary Information</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -352,8 +352,8 @@ export default function ReceiveStorePage() {
                   )}
                 />
               </div>
-              <FormDescription>
-                Search by job name or number. Selecting a job auto-fills the category and item list.
+              <FormDescription className="mt-2">
+                  Search by job name or number. Selecting a job auto-fills the category and item list.
               </FormDescription>
             </CardContent>
           </Card>
@@ -527,7 +527,7 @@ function ItemArray({ containerIndex, control, jobItems }: ItemArrayProps) {
     name: `containers.${containerIndex}.items`
   });
   
-  const { register, formState: { errors } } = useFormContext<ReceiveFormValues>();
+  const { formState: { errors } } = useFormContext<ReceiveFormValues>();
   const containerErrors = errors.containers?.[containerIndex] as any;
 
   return (
@@ -548,98 +548,121 @@ function ItemArray({ containerIndex, control, jobItems }: ItemArrayProps) {
         <p className="text-sm font-medium text-destructive">{containerErrors.items.message}</p>
       )}
 
-      {fields.map((item, itemIndex) => {
-        const [popoverOpen, setPopoverOpen] = useState(false);
-        return (
-          <div key={item.id} className="grid grid-cols-1 gap-4 items-start sm:grid-cols-[1fr_auto_auto] sm:gap-2">
-            <FormField
-              control={control}
-              name={`containers.${containerIndex}.items.${itemIndex}.description`}
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel className={cn(itemIndex !== 0 && "sr-only")}>Description/Part Number</FormLabel>
-                  <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}
-                        >
-                          {field.value || "Select or type an item"}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                      <Command shouldFilter={true} filter={(value, search) => {
-                        if (value.toLowerCase().includes(search.toLowerCase())) return 1;
-                        return 0;
-                      }}>
-                        <CommandInput 
-                          placeholder="Search or type new item..." 
-                          {...register(`containers.${containerIndex}.items.${itemIndex}.description`)}
-                          onValueChange={(search) => field.onChange(search)}
-                        />
-                        <CommandList>
-                          <CommandEmpty>
-                              <div className="p-4 text-sm">No items match. You can add this as a new item.</div>
-                          </CommandEmpty>
-                          <CommandGroup>
-                            {jobItems.map((jobItem) => (
-                              <CommandItem
-                                key={jobItem.id}
-                                value={jobItem.description}
-                                onSelect={(currentValue) => {
-                                  field.onChange(currentValue === field.value ? "" : currentValue);
-                                  setPopoverOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn("mr-2 h-4 w-4", field.value === jobItem.description ? "opacity-100" : "opacity-0")}
-                                />
-                                {jobItem.description}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={control}
-              name={`containers.${containerIndex}.items.${itemIndex}.quantity`}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className={cn(itemIndex !== 0 && "sr-only")}>Quantity</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="1" {...field} className="w-24 text-right" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className={cn("flex items-end h-full", itemIndex !== 0 && "sm:pt-8")}>
-               {fields.length > 1 && (
+      {fields.map((item, itemIndex) => (
+        <ItemRow
+          key={item.id}
+          containerIndex={containerIndex}
+          itemIndex={itemIndex}
+          control={control}
+          jobItems={jobItems}
+          onRemove={remove}
+          showRemoveButton={fields.length > 1}
+        />
+      ))}
+    </div>
+  );
+}
+
+type ItemRowProps = {
+  containerIndex: number;
+  itemIndex: number;
+  control: Control<ReceiveFormValues>;
+  jobItems: BomItem[];
+  onRemove: UseFieldArrayRemove;
+  showRemoveButton: boolean;
+};
+
+function ItemRow({ containerIndex, itemIndex, control, jobItems, onRemove, showRemoveButton }: ItemRowProps) {
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const { register } = useFormContext<ReceiveFormValues>();
+  
+  return (
+    <div className="grid grid-cols-1 gap-4 items-start sm:grid-cols-[1fr_auto_auto] sm:gap-2">
+      <FormField
+        control={control}
+        name={`containers.${containerIndex}.items.${itemIndex}.description`}
+        render={({ field }) => (
+          <FormItem className="flex flex-col">
+            <FormLabel className={cn(itemIndex !== 0 && "sr-only")}>Description/Part Number</FormLabel>
+            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+              <PopoverTrigger asChild>
+                <FormControl>
                   <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-destructive"
-                      onClick={() => remove(itemIndex)}
+                    variant="outline"
+                    role="combobox"
+                    className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}
                   >
-                      <Trash2 className="h-4 w-4" />
-                      <span className="sr-only">Remove Item</span>
+                    {field.value || "Select or type an item"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
-               )}
-            </div>
-          </div>
-        )
-      })}
+                </FormControl>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command shouldFilter={true} filter={(value, search) => {
+                  if (value.toLowerCase().includes(search.toLowerCase())) return 1;
+                  return 0;
+                }}>
+                  <CommandInput 
+                    placeholder="Search or type new item..." 
+                    {...register(`containers.${containerIndex}.items.${itemIndex}.description`)}
+                    onValueChange={(search) => field.onChange(search)}
+                  />
+                  <CommandList>
+                    <CommandEmpty>
+                        <div className="p-4 text-sm">No items match. You can add this as a new item.</div>
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {jobItems.map((jobItem) => (
+                        <CommandItem
+                          key={jobItem.id}
+                          value={jobItem.description}
+                          onSelect={(currentValue) => {
+                            field.onChange(currentValue === field.value ? "" : currentValue);
+                            setPopoverOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn("mr-2 h-4 w-4", field.value === jobItem.description ? "opacity-100" : "opacity-0")}
+                          />
+                          {jobItem.description}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={control}
+        name={`containers.${containerIndex}.items.${itemIndex}.quantity`}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel className={cn(itemIndex !== 0 && "sr-only")}>Quantity</FormLabel>
+            <FormControl>
+              <Input type="number" placeholder="1" {...field} className="w-24 text-right" />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <div className={cn("flex items-end h-full", itemIndex !== 0 && "sm:pt-8")}>
+         {showRemoveButton && (
+            <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => onRemove(itemIndex)}
+            >
+                <Trash2 className="h-4 w-4" />
+                <span className="sr-only">Remove Item</span>
+            </Button>
+         )}
+      </div>
     </div>
   );
 }
