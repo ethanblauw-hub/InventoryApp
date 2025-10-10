@@ -23,6 +23,9 @@ import { useFirestore, useMemoFirebase } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, collectionGroup, query } from 'firebase/firestore';
 import { Bom, Category } from '@/lib/data';
+import { time } from 'console';
+import { SelectPortal } from '@radix-ui/react-select';
+import { SelectRangeProvider } from 'react-day-picker';
 
 /**
  * A page component that displays a list of all uploaded Bills of Materials (BOMs).
@@ -41,6 +44,8 @@ export default function BomsPage() {
   );
   const { data: boms, isLoading: areBomsLoading } = useCollection<Bom>(bomsQuery);
 
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
   const categoriesQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'workCategories') : null),
     [firestore]
@@ -52,7 +57,9 @@ export default function BomsPage() {
    * Navigates the user to the detail page for the selected BOM.
    * @param {Bom} bom - The BOM object.
    */
-  const handleRowClick = (bom: Bom) => {
+  const handleRowClick = async (bom: Bom) => {
+    console.log(bom);
+    await sleep(5000);
     router.push(`/boms/${bom.jobNumber}/${bom.id}`);
   };
 

@@ -55,6 +55,7 @@ type BomDetailPageProps = {
  * @returns {JSX.Element} The rendered BOM detail page.
  */
 export default function BomDetailPage({ params }: BomDetailPageProps) {
+  console.log(params);
   const router = useRouter();
   const { jobId, bomId } = params;
   const firestore = useFirestore();
@@ -77,12 +78,14 @@ export default function BomDetailPage({ params }: BomDetailPageProps) {
     router.push(`/locations?search=${encodeURIComponent(shelfLocation)}`);
   }
 
+  console.log(isBomLoading, " ", areCategoriesLoading);
   if (isBomLoading || areCategoriesLoading) {
     return <div>Loading BOM details...</div>;
   }
   
   if (!bom) {
     // If loading is finished and we still have no bom, it's a 404
+    console.log(isBomLoading);
     notFound();
     return null; // notFound() throws an error so this is for type safety
   }
