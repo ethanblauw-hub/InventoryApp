@@ -25,9 +25,10 @@ import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { doc, collection, query, where, getDocs, runTransaction, DocumentData } from 'firebase/firestore';
-import { Container, Category, Bom } from '@/lib/data';
+import { doc, collection, query, where, getDocs, runTransaction, DocumentData, collectionGroup } from 'firebase/firestore';
+import { Container, Category, Bom, Location as ShelfLocation } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { MoveContainerDialog } from '@/components/move-container-dialog';
 
 
 /**
@@ -56,6 +57,12 @@ export default function ContainerDetailsPage() {
     [firestore]
   );
   const { data: categories, isLoading: areCategoriesLoading } = useCollection<Category>(categoriesQuery);
+
+  const locationsQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'shelfLocations') : null),
+    [firestore]
+  );
+  const { data: shelfLocations, isLoading: areLocationsLoading } = useCollection<ShelfLocation>(locationsQuery);
 
   useEffect(() => {
     if (!isContainerLoading && !container) {
@@ -140,7 +147,7 @@ export default function ContainerDetailsPage() {
   };
 
 
-  if (isContainerLoading || areCategoriesLoading) {
+  if (isContainerLoading || areCategoriesLoading || areLocationsLoading) {
     return <div>Loading container details...</div>;
   }
   
@@ -153,6 +160,8 @@ export default function ContainerDetailsPage() {
   }
 
   const workCategory = categories?.find(cat => cat.id === container.workCategoryId);
+  const sortedLocations = shelfLocations?.sort((a, b) => a.name.localeCompare(b.name)) || [];
+
 
   return (
     <div className="space-y-6">
@@ -214,7 +223,10 @@ export default function ContainerDetailsPage() {
                         <div className="flex items-center justify-between">
                             <p className="font-semibold">{container.shelfLocation || 'Not Shelved'}</p>
                             <div className="flex gap-2">
-                                <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4"/> Move</Button>
+                                <MoveContainerDialog 
+                                  container={container} 
+                                  allLocations={sortedLocations} 
+                                />
                                 <Button variant="destructive" size="sm"><Trash2 className="mr-2 h-4 w-4"/> Clear</Button>
                             </div>
                         </div>

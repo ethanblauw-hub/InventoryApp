@@ -34,7 +34,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import Image from 'next/image';
 import { useFirestore, useMemoFirebase, useCollection, useUser, useFirebaseApp } from '@/firebase';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, collectionGroup, query, runTransaction, doc, where, getDocs, DocumentSnapshot, Transaction } from 'firebase/firestore';
+import { collection, collectionGroup, query, runTransaction, doc, where, getDocs, DocumentSnapshot, Transaction, DocumentData } from 'firebase/firestore';
 import { Bom, Category, Location, BomItem, Container } from '@/lib/data';
 import { useRouter } from 'next/navigation';
 import React from 'react';
@@ -90,17 +90,9 @@ export default function ReceiveStorePage() {
   );
   const { data: locations, isLoading: areLocationsLoading } = useCollection<Location>(locationsQuery);
 
-  const uniqueLocations = useMemo(() => {
+  const sortedLocations = useMemo(() => {
     if (!locations) return [];
-    const seen = new Set<string>();
-    const unique: Location[] = [];
-    for (const location of locations) {
-      if (!seen.has(location.name)) {
-        seen.add(location.name);
-        unique.push(location);
-      }
-    }
-    return unique;
+    return [...locations].sort((a, b) => a.name.localeCompare(b.name));
   }, [locations]);
 
 
@@ -154,8 +146,6 @@ export default function ReceiveStorePage() {
 
         // --- PHASE 1: ALL READS ---
         if (values.jobNumber) {
-          // Find the BOM document reference. This part is a read but it's outside the transaction, which is fine.
-          // We just need the reference to read it inside the transaction.
           const bomsCollectionQuery = query(
             collectionGroup(firestore, 'boms'),
             where('jobNumber', '==', values.jobNumber)
@@ -164,7 +154,6 @@ export default function ReceiveStorePage() {
 
           if (!bomsSnapshot.empty) {
             bomDocRef = bomsSnapshot.docs[0].ref;
-            // Now, read the document *inside* the transaction.
             transactionalBomDoc = await transaction.get(bomDocRef);
             if (!transactionalBomDoc.exists()) {
               throw new Error(`BOM for job ${values.jobNumber} not found inside transaction!`);
@@ -473,7 +462,7 @@ export default function ReceiveStorePage() {
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    {uniqueLocations.map(location => (
+                                    {sortedLocations.map(location => (
                                       <SelectItem key={`${containerIndex}-${location.id}`} value={location.name}>{location.name}</SelectItem>
                                     ))}
                                 </SelectContent>

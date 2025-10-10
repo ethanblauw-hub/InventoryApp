@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
@@ -99,7 +99,10 @@ export default function LocationsPage() {
     }))
   ) || [];
   
-  const allShelfLocationNames = shelfLocations?.map(l => l.name) || [];
+  const allShelfLocationNames = useMemo(() => {
+    return shelfLocations?.map(l => l.name).sort((a, b) => a.localeCompare(b)) || [];
+  }, [shelfLocations]);
+
   const occupiedShelfLocations = new Set(allBomItems.flatMap(item => item.shelfLocations));
   const occupancyPercentage = allShelfLocationNames.length > 0 ? (occupiedShelfLocations.size / allShelfLocationNames.length) * 100 : 0;
 
@@ -110,7 +113,7 @@ export default function LocationsPage() {
     }))
   );
 
-  const allDisplayItems = useMemoFirebase(() => {
+  const allDisplayItems = useMemo(() => {
     const items = new Map<string, DisplayItem[]>();
     for (const item of locationItems) {
       if (!items.has(item.location)) {
@@ -202,7 +205,9 @@ export default function LocationsPage() {
     }
     
     let comparison = 0;
-    if (aValue > bValue) {
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+        comparison = aValue.localeCompare(bValue);
+    } else if (aValue > bValue) {
       comparison = 1;
     } else if (aValue < bValue) {
       comparison = -1;
@@ -210,10 +215,10 @@ export default function LocationsPage() {
 
     // Secondary sort: if primary is equal, sort by location, then job number
     if (comparison === 0) {
-      if (a.location < b.location) comparison = -1;
-      else if (a.location > b.location) comparison = 1;
-      else if (a.jobNumber && b.jobNumber && a.jobNumber < b.jobNumber) comparison = -1;
-      else if (a.jobNumber && b.jobNumber && a.jobNumber > b.jobNumber) comparison = 1;
+      comparison = a.location.localeCompare(b.location);
+      if (comparison === 0 && a.jobNumber && b.jobNumber) {
+        comparison = a.jobNumber.localeCompare(b.jobNumber);
+      }
     }
 
     return sortDirection === 'asc' ? comparison : comparison * -1;

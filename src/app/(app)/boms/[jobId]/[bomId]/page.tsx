@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import {
   Card,
@@ -55,7 +55,7 @@ const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.i
  * @property {string} params.bomId - The ID of the Bill of Materials to display.
  */
 type BomDetailPageProps = {
-  params: { jobId: string; bomId: string };
+  params: Promise<{ jobId: string; bomId: string }>;
 };
 
 /**
@@ -66,9 +66,9 @@ type BomDetailPageProps = {
  * @param {BomDetailPageProps} props - The props for the component.
  * @returns {JSX.Element} The rendered BOM detail page.
  */
-export default function BomDetailPage({ params }: BomDetailPageProps) {
+export default function BomDetailPage(props: BomDetailPageProps) {
   const router = useRouter();
-  const { jobId, bomId } = params;
+  const { jobId, bomId } = use(props.params);
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
