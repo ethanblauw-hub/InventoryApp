@@ -1,7 +1,7 @@
 
 'use client';
 
-import { use, useEffect } from 'react';
+import { use, useEffect, useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import {
   Card,
@@ -23,10 +23,11 @@ import { Button } from '@/components/ui/button';
 import { Edit, Trash2, FileText, PlusCircle, Ship, History } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
-import { notFound, useParams } from 'next/navigation';
+import { notFound, useParams, useRouter } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { doc, collection } from 'firebase/firestore';
+import { doc, collection, query, where, getDocs, runTransaction, DocumentData } from 'firebase/firestore';
 import { Container, Category, Bom } from '@/lib/data';
+import { useToast } from '@/hooks/use-toast';
 
 
 /**
@@ -38,8 +39,11 @@ import { Container, Category, Bom } from '@/lib/data';
  */
 export default function ContainerDetailsPage() {
   const params = useParams();
+  const router = useRouter();
+  const { toast } = useToast();
   const id = params.id as string;
   const firestore = useFirestore();
+  const [isShipping, setIsShipping] = useState(false);
 
   const containerRef = useMemoFirebase(
     () => (firestore && id ? doc(firestore, 'containers', id) : null),
@@ -58,6 +62,83 @@ export default function ContainerDetailsPage() {
       notFound();
     }
   }, [isContainerLoading, container]);
+  
+  const handleShipContainer = async () => {
+    if (!firestore || !container?.jobNumber) {
+      toast({
+        variant: "destructive",
+        title: "Cannot Ship Container",
+        description: "Job number is missing, so the corresponding BOM cannot be found.",
+      });
+      return;
+    }
+
+    setIsShipping(true);
+
+    try {
+      await runTransaction(firestore, async (transaction) => {
+        // 1. Find the BOM for the job.
+        const bomsQuery = query(
+          collectionGroup(firestore, 'boms'),
+          where('jobNumber', '==', container.jobNumber)
+        );
+        
+        // This read must happen before any writes.
+        const bomsSnapshot = await getDocs(bomsQuery);
+
+        if (bomsSnapshot.empty) {
+          throw new Error(`No BOM found for job number: ${container.jobNumber}`);
+        }
+
+        const bomDoc = bomsSnapshot.docs[0];
+        const bomData = bomDoc.data() as Bom;
+        const bomRef = bomDoc.ref;
+        
+        // Prepare a map of quantities to ship from the container.
+        const shippingQuantities = new Map<string, number>();
+        for (const item of container.items) {
+            shippingQuantities.set(item.description, (shippingQuantities.get(item.description) || 0) + item.quantity);
+        }
+
+        // 2. Prepare the updated items list for the BOM.
+        const updatedBomItems = bomData.items.map(bomItem => {
+          if (shippingQuantities.has(bomItem.description)) {
+            const quantityToShip = shippingQuantities.get(bomItem.description)!;
+            const newOnHand = (bomItem.onHandQuantity || 0) - quantityToShip;
+            const newShipped = (bomItem.shippedQuantity || 0) + quantityToShip;
+
+            return {
+              ...bomItem,
+              onHandQuantity: newOnHand < 0 ? 0 : newOnHand, // Prevent negative on-hand
+              shippedQuantity: newShipped,
+              lastUpdated: new Date().toISOString(),
+            };
+          }
+          return bomItem;
+        });
+
+        // 3. Perform the write.
+        transaction.update(bomRef, { items: updatedBomItems });
+      });
+
+      toast({
+        title: "Container Marked for Shipping",
+        description: "The BOM has been updated with new on-hand and shipped quantities.",
+      });
+      router.push('/boms');
+
+    } catch (error: any) {
+      console.error("Failed to ship container:", error);
+      toast({
+        variant: "destructive",
+        title: "Shipping Failed",
+        description: error.message || "An unexpected error occurred while updating the BOM.",
+      });
+    } finally {
+      setIsShipping(false);
+    }
+  };
+
 
   if (isContainerLoading || areCategoriesLoading) {
     return <div>Loading container details...</div>;
@@ -94,7 +175,10 @@ export default function ContainerDetailsPage() {
                 </Link>
               </Button>
             )}
-            <Button variant="secondary"><Ship className="mr-2 h-4 w-4" /> Ship Container</Button>
+            <Button variant="secondary" onClick={handleShipContainer} disabled={isShipping}>
+              <Ship className="mr-2 h-4 w-4" /> 
+              {isShipping ? 'Shipping...' : 'Ship Container'}
+            </Button>
             <Button variant="ghost"><History className="mr-2 h-4 w-4" /> View Change Log</Button>
         </div>
       </PageHeader>
@@ -120,7 +204,7 @@ export default function ContainerDetailsPage() {
                             <p>{workCategory ? <Badge variant="secondary">{workCategory.name}</Badge> : 'N/A'}</p>
                         </div>
                          <div>
-                            <p className="text-sm font-medium text.muted.foreground">Container Type</p>
+                            <p className="text-sm font-medium text-muted-foreground">Container Type</p>
                             <p>{container.containerType}</p>
                         </div>
                      </div>
