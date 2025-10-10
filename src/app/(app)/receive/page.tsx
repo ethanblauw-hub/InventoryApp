@@ -91,7 +91,9 @@ export default function ReceiveStorePage() {
     const seen = new Set<string>();
     return locations.filter(location => {
       const isDuplicate = seen.has(location.name);
-      seen.add(location.name);
+      if (!isDuplicate) {
+        seen.add(location.name);
+      }
       return !isDuplicate;
     });
   }, [locations]);
@@ -134,9 +136,9 @@ export default function ReceiveStorePage() {
             workCategoryId: values.workCategory,
             containerType: container.type,
             items: container.items,
-            shelfLocation: container.shelfLocation,
-            notes: container.notes,
-            imageUrl: container.imageUrl,
+            shelfLocation: container.shelfLocation ?? null,
+            notes: container.notes ?? null,
+            imageUrl: container.imageUrl ?? null,
           };
           
           const newContainerRef = doc(collection(firestore, 'containers'));
@@ -159,7 +161,6 @@ export default function ReceiveStorePage() {
 
           if (!bomsSnapshot.empty) {
             const bomDoc = bomsSnapshot.docs[0];
-            const bomData = bomDoc.data() as Bom;
             const bomRef = bomDoc.ref;
             
             // Get the current state of the BOM within the transaction
