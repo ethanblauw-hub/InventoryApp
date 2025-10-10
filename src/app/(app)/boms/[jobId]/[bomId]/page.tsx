@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { notFound, useRouter } from 'next/navigation';
 import { EditBOMDialog } from '@/components/edit-bom-dialog';
 import { useDoc } from '@/firebase';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { Bom } from '@/lib/data';
 import { useCollection } from '@/firebase';
@@ -43,6 +43,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { use } from 'react';
 import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 
@@ -55,7 +56,7 @@ const getPlaceholderImage = (imageId: string) => PlaceHolderImages.find(p => p.i
  * @property {string} params.bomId - The ID of the Bill of Materials to display.
  */
 type BomDetailPageProps = {
-  params: { jobId: string; bomId: string };
+  params: Promise<{ jobId: string; bomId: string }>;
 };
 
 /**
@@ -66,10 +67,10 @@ type BomDetailPageProps = {
  * @param {BomDetailPageProps} props - The props for the component.
  * @returns {JSX.Element} The rendered BOM detail page.
  */
-export default function BomDetailPage({ params }: BomDetailPageProps) {
+export default function BomDetailPage(props: BomDetailPageProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { jobId, bomId } = params;
+  const { jobId, bomId } = use(props.params);
   const firestore = useFirestore();
 
   const bomRef = useMemoFirebase(
@@ -88,13 +89,19 @@ export default function BomDetailPage({ params }: BomDetailPageProps) {
   // Placeholder for admin check. Replace with actual authentication logic.
   const isAdmin = true;
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!bomRef) return;
+    
+    // Non-blocking delete so the UI can update immediately
     deleteDocumentNonBlocking(bomRef);
+    
+    // Show a toast message to confirm the action
     toast({
       title: "BOM Deletion Initiated",
       description: `The BOM "${bom?.jobName}" is being deleted.`,
     });
+    
+    // Redirect immediately to prevent 404 error on re-render
     router.push('/boms');
   };
 
